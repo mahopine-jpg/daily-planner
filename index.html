@@ -150,7 +150,7 @@
     <div class="ai-avatar">🐱</div>
     <div class="ai-content">
         <div class="ai-name">ネコ助</div>
-        <div id="ai-response">お待たせニャ！プログラムのバグを完璧に撃退したニャ！今度こそエラーにならず、キレイな緑のチェックがつくはずニャ〜🐾</div>
+        <div id="ai-response">朝のルーティンを修正したニャ！ペットたちのエサやりやトイレ掃除を追加して、お弁当作りは休憩なしの『07:30』にきっちり合わせたニャ。これで最高の朝をスタートしてニャ〜🐾</div>
     </div>
 </div>
 
@@ -180,9 +180,10 @@
 
     function resetApiKey() { localStorage.removeItem('GEMINI_API_KEY'); location.reload(); }
 
+    // 🌞 毎日の確定ルーティンデータ（ご指摘通りに修正しましたニャ！）
     const baseRoutines = [
-        { time: "07:00", title: "起床・お部屋リセット", detail: "カーテン開け/布団整え/簡単な部屋の片付け（10分実働・残り20分バッファ）", type: "routine", done: false },
-        { time: "07:35", title: "お弁当作り 🍱", detail: "子供のお弁当準備（20分）➔ 5分休憩", type: "routine", done: false },
+        { time: "07:00", title: "起床・お部屋リセット＆ペットお世話", detail: "カーテンを開ける/布団を整える/亀にエサ/猫にごはん/猫のトイレ掃除（実働20分・残り10分バッファ）", type: "routine", done: false },
+        { time: "07:30", title: "お弁当作り 🍱", detail: "子供のお弁当準備（20分）※休憩なしでダイレクトに開始！", type: "routine", done: false },
         { time: "08:00", title: "朝食＆ゆったり休憩 ☕️", detail: "子供が出かけた後の朝ごはん。【最重要】食後にサプリを飲む。", type: "routine", done: false },
         { time: "09:05", title: "朝の集中家事＆身支度 🧹", detail: "食器洗い ➔ 洗濯機回す ➔ 掃除ロボ起動。その間に自身の洗面・身支度。", type: "routine", done: false },
         { time: "12:00", title: "ランチ休憩 🥗", detail: "調理・食事・片付けをゆったり含む（90分枠）", type: "routine", done: false },
@@ -236,7 +237,6 @@
         return val;
     }
 
-    // ★【バグ修正】崩れていた関数構造をきれいに修復しました
     function calculateMiddleTime(t1, t2) {
         const toMins = t => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
         const toStr = m => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
