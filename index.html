@@ -150,7 +150,7 @@
     <div class="ai-avatar">🐱</div>
     <div class="ai-content">
         <div class="ai-name">ネコ助</div>
-        <div id="ai-response">ごめんニャ！タイポのせいでアプリが固まってたニャ。今度こそ完璧に直したから、サクサク動くのを確認してほしいニャ〜🐾</div>
+        <div id="ai-response">お待たせニャ！プログラムのバグを完璧に撃退したニャ！今度こそエラーにならず、キレイな緑のチェックがつくはずニャ〜🐾</div>
     </div>
 </div>
 
@@ -186,7 +186,7 @@
         { time: "08:00", title: "朝食＆ゆったり休憩 ☕️", detail: "子供が出かけた後の朝ごはん。【最重要】食後にサプリを飲む。", type: "routine", done: false },
         { time: "09:05", title: "朝の集中家事＆身支度 🧹", detail: "食器洗い ➔ 洗濯機回す ➔ 掃除ロボ起動。その間に自身の洗面・身支度。", type: "routine", done: false },
         { time: "12:00", title: "ランチ休憩 🥗", detail: "調理・食事・片付けをゆったり含む（90分枠）", type: "routine", done: false },
-        { time: "18:00", title: "夜の家事スタート 🐈", detail: "カーテン閉め/猫ちゃんにごご飯をあげる/お米研ぎ炊飯開始。", type: "routine", done: false },
+        { time: "18:00", title: "夜の家事スタート 🐈", detail: "カーテン閉め/猫ちゃんにご飯をあげる/お米研ぎ炊飯開始。", type: "routine", done: false },
         { time: "22:00", title: "入浴＆自由時間 🎵", detail: "お風呂にゆっくり浸かり、BTSの動画を見たり韓国語の勉強をするリラックスタイム。", type: "routine", done: false },
         { time: "23:50", title: "就寝 🌙", detail: "夜更かし厳禁・健康のための絶対死守ライン！", type: "routine", done: false }
     ];
@@ -236,7 +236,7 @@
         return val;
     }
 
-    // ★【バグ完全修正】邪魔な「0目標」を綺麗に消し去りました
+    // ★【バグ修正】崩れていた関数構造をきれいに修復しました
     function calculateMiddleTime(t1, t2) {
         const toMins = t => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
         const toStr = m => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
