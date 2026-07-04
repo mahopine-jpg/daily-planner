@@ -6,6 +6,10 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Daily Planner AI</title>
+    
+    <!-- 📱 iPhoneのホーム画面アイコン（アップルタッチアイコン）の設定 -->
+    <link rel="apple-touch-icon" href="https://img.icons8.com/fluent/180/000000/sparkling-particles.png">
+    
     <style>
         :root {
             --bg-color: #f5f6fa;
@@ -13,10 +17,10 @@
             --text-main: #4a4a4a;
             --text-sub: #9b9b9b;
             --accent: #a8c0ff;
-            --routine: #b5e2b9; /* 確定ルーティン：優しいグリーン */
-            --cooking: #fbc531; /* 夕飯調理：温かみのあるイエロー */
-            --task: #dcdde1;    /* 思いつきタスク：落ち着いたグレー */
-            --calendar: #ff7675;/* カレンダー予定：柔らかなコーラルレッド */
+            --routine: #b5e2b9;
+            --cooking: #fbc531;
+            --task: #dcdde1;
+            --calendar: #ff7675;
             --border-color: #f1f2f6;
         }
 
@@ -124,7 +128,7 @@
 </div>
 
 <div id="ai-response" class="ai-response-box">
-    確定ルーティンをセットしました！今日のカレンダーの予定、思いつきの追加タスク、夕飯のメニューなどを教えてください。不要なルーティンがあれば「今日はお弁当なしで」のように言っていただければ除外します。
+    確定ルーティンをセットしました！今日のカレンダーの予定、思いつきの追加タスク、夕飯のメニューなどを教えてください。
 </div>
 
 <div id="status" class="status-indicator">🎀 AIがスケジュールを調整中...</div>
@@ -156,7 +160,6 @@
         location.reload();
     }
 
-    // 🌞 毎日の確定ルーティン初期データ
     const baseRoutines = [
         { time: "07:00", title: "起床・お部屋リセット（カーテン開け/布団整え）", type: "routine", done: false },
         { time: "07:35", title: "お弁当作り 🍱（子供のお弁当準備）", type: "routine", done: false },
@@ -184,6 +187,7 @@
             const item = document.createElement('div');
             item.className = `timeline-item ${ev.type} ${ev.done ? 'is-done' : ''}`;
             
+            // ★【バグ修正】216行目の onchange を updateTitle に正しく修正しました
             item.innerHTML = `
                 <div class="item-left">
                     <input type="text" class="time-input" value="${ev.time}" onchange="updateTime(${idx}, this.value)">
@@ -220,14 +224,13 @@
         ユーザーから新しい予定、思いつき、夕飯のメニューなどが届いたら、現在のタイムラインの状況を踏まえて、新しいスケジュールを提案してください。
 
         【現在のタイムラインデータ】: ${JSON.stringify(currentEvents)}
-        ※初期状態で確定ルーティンが組み込まれています。ユーザーが「今日はお弁当なし」など不要な申告をした場合は、該当するルーティンデータをタイムラインから除外（削除）してください。
 
         【指示】:
-        1. 夕飯のメニューが指定されたら、17:30〜18:10の間にそのメニューに最適な調理ステップ（例: 下ごしらえ、仕上げ加熱など）を2ステップ程度に分解し、"cooking"タイプとしてタイムラインに必ず組み込んでください。
+        1. 夕飯のメニューが指定されたら、17:30〜18:10の間にそのメニューに最適な調理ステップを2ステップ程度に分解し、"cooking"タイプとしてタイムラインに必ず組み込んでください。
         2. 出力は、ユーザーへの「おしゃべり（返答コメント）」と、更新後の「新しいタイムラインのJSONデータ」を両方含めるため、必ず以下の【出力形式】を厳守してください。
 
         【出力形式】:
-        ココにユーザーへの親切で温かい返答コメント（調理のアドバイスやタスク配置の理由など）を書いてください。
+        ココにユーザーへの親切で温かい返答コメントを書いてください。
         ===DATA===
         [
           {"time": "07:00", "title": "起床...", "type": "routine", "done": false},
