@@ -68,7 +68,6 @@
 
         .timeline { position: relative; }
 
-        /* 📋 右上隅に✕ボタンを完全独立させた、文字幅マックスの最終進化カード */
         .timeline-item {
             position: relative; background: var(--card-bg); border-radius: 20px;
             padding: 16px 14px; margin-bottom: 14px;
@@ -83,7 +82,6 @@
         .timeline-item.calendar { border-left-color: var(--calendar); }
         .timeline-item.task { border-left-color: var(--task); }
 
-        /* チェックボックスの縦位置をカード上部に綺麗に合わせる */
         .checkbox-container { position: relative; cursor: pointer; width: 24px; height: 24px; flex-shrink: 0; margin-top: 2px; }
         .checkbox-container input { position: absolute; opacity: 0; }
         .checkmark { position: absolute; top: 0; left: 0; height: 24px; width: 24px; background-color: #ffffff; border: 2px solid #cbd5e0; border-radius: 50%; transition: all 0.2s; }
@@ -113,7 +111,6 @@
         
         .title-input:focus, .detail-input:focus, .time-input:focus { background: #fff9db; border-radius: 4px; }
 
-        /* ✕ 削除ボタンをカードの右上隅に配置 */
         .delete-btn {
             position: absolute; top: 12px; right: 12px;
             background: none; border: none; color: #e53e3e; font-size: 14px;
@@ -153,7 +150,7 @@
     <div class="ai-avatar">🐱</div>
     <div class="ai-content">
         <div class="ai-name">ネコ助</div>
-        <div id="ai-response">お待たせニャ！時間の枠に全角で『１３００』みたいに4桁打ち込むだけで、自動でキレイな半角時刻に直すようにしたニャ！✕ボタンも右上隅に避けたから、文字が長くても安心ニャ〜🐾</div>
+        <div id="ai-response">ごめんニャ！タイポのせいでアプリが固まってたニャ。今度こそ完璧に直したから、サクサク動くのを確認してほしいニャ〜🐾</div>
     </div>
 </div>
 
@@ -189,7 +186,7 @@
         { time: "08:00", title: "朝食＆ゆったり休憩 ☕️", detail: "子供が出かけた後の朝ごはん。【最重要】食後にサプリを飲む。", type: "routine", done: false },
         { time: "09:05", title: "朝の集中家事＆身支度 🧹", detail: "食器洗い ➔ 洗濯機回す ➔ 掃除ロボ起動。その間に自身の洗面・身支度。", type: "routine", done: false },
         { time: "12:00", title: "ランチ休憩 🥗", detail: "調理・食事・片付けをゆったり含む（90分枠）", type: "routine", done: false },
-        { time: "18:00", title: "夜の家事スタート 🐈", detail: "カーテン閉め/猫ちゃんにご飯をあげる/お米研ぎ炊飯開始。", type: "routine", done: false },
+        { time: "18:00", title: "夜の家事スタート 🐈", detail: "カーテン閉め/猫ちゃんにごご飯をあげる/お米研ぎ炊飯開始。", type: "routine", done: false },
         { time: "22:00", title: "入浴＆自由時間 🎵", detail: "お風呂にゆっくり浸かり、BTSの動画を見たり韓国語の勉強をするリラックスタイム。", type: "routine", done: false },
         { time: "23:50", title: "就寝 🌙", detail: "夜更かし厳禁・健康のための絶対死守ライン！", type: "routine", done: false }
     ];
@@ -205,6 +202,7 @@
     function renderTimeline() {
         const container = document.getElementById('timeline');
         container.innerHTML = '';
+        
         currentEvents.sort((a, b) => a.time.localeCompare(b.time));
         
         currentEvents.forEach((ev, idx) => {
@@ -218,35 +216,37 @@
                 </label>
                 <div class="item-center">
                     <div>
-                        <!-- 決定時にフォーマット変換をかけるイベントを紐付け -->
                         <input type="text" class="time-input" value="${ev.time}" onchange="updateTime(${idx}, this.value)">
                     </div>
                     <div class="title-input" contenteditable="true" onblur="updateTitle(${idx}, this.innerText)">${ev.title}</div>
                     <div class="detail-input" contenteditable="true" onblur="updateDetail(${idx}, this.innerText)">${ev.detail || ''}</div>
                 </div>
-                <!-- ✕ボタンを右上隅（仕様上はabsoluteで配置）に設置 -->
                 <button class="delete-btn" onclick="deleteItem(${idx})">✕</button>
             `;
             container.appendChild(item);
         });
     }
 
-    // ★ 全角数字や4桁数字を「10:30」の半角時刻に自動クレンジングする関数
     function formatTimeInput(val) {
-        // 全角数字を半角数字に変換
         let str = val.replace(/[０-９]/g, (s) => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
-        // 数字以外（コロンなど）を除去して純粋な数字のみにする
         let nums = str.replace(/[^0-9]/g, '');
-        
-        // もし4桁の数字が綺麗に揃っていたら「HH:MM」の形にする
         if (nums.length === 4) {
             return nums.substring(0, 2) + ":" + nums.substring(2, 4);
         }
-        return val; // 4桁じゃない場合は、手入力の自由度を残すためそのまま返す
+        return val;
+    }
+
+    // ★【バグ完全修正】邪魔な「0目標」を綺麗に消し去りました
+    function calculateMiddleTime(t1, t2) {
+        const toMins = t => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+        const toStr = m => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+        let m1 = toMins(t1); let m2 = toMins(t2);
+        if (m1 >= m2) m2 += 15; 
+        let middle = Math.floor((m1 + m2) / 2);
+        return toStr(middle);
     }
 
     function updateTime(idx, newTime) { 
-        // 入力された文字を賢くフォーマット化
         currentEvents[idx].time = formatTimeInput(newTime); 
         renderTimeline(); 
     }
