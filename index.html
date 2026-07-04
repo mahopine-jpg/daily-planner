@@ -6,10 +6,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Daily Planner AI</title>
-    
-    <!-- 📱 iPhoneのホーム画面アイコン（アップルタッチアイコン）の設定 -->
     <link rel="apple-touch-icon" href="https://img.icons8.com/fluent/180/000000/sparkling-particles.png">
-    
     <style>
         :root {
             --bg-color: #f5f6fa;
@@ -41,33 +38,33 @@
         .header p { font-size: 13px; color: var(--text-sub); margin: 0; }
 
         .ai-response-box {
-            background: #f0edff;
-            border: 1px solid #dcd6ff;
-            border-radius: 18px;
-            padding: 14px 16px;
-            margin-bottom: 24px;
-            font-size: 14px;
-            line-height: 1.5;
-            color: #574b90;
-            position: relative;
-            box-shadow: 0 4px 12px rgba(108, 92, 231, 0.05);
+            background: #f0edff; border: 1px solid #dcd6ff; border-radius: 18px;
+            padding: 14px 16px; margin-bottom: 24px; font-size: 14px; line-height: 1.5; color: #574b90;
         }
-        .ai-response-box::before {
-            content: '🤖 Gemini: ';
-            font-weight: bold;
-            display: block;
-            margin-bottom: 4px;
-            font-size: 12px;
-        }
+        .ai-response-box::before { content: '🤖 Gemini: '; font-weight: bold; display: block; margin-bottom: 4px; font-size: 12px; }
 
         .timeline { position: relative; padding-left: 8px; }
 
+        /* 📋 カードデザインの大改修（折り返し・ドラッグ対応） */
         .timeline-item {
             position: relative; background: var(--card-bg); border-radius: 16px;
             padding: 14px 16px; margin-bottom: 14px;
             box-shadow: 0 8px 16px rgba(0,0,0,0.02);
             border-left: 6px solid var(--accent);
             display: flex; align-items: center; justify-content: space-between;
+            gap: 12px;
+            cursor: grab; /* 掴めるアイコン */
+            user-select: none;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .timeline-item:active { cursor: grabbing; }
+        
+        /* ドラッグ中の見た目 */
+        .timeline-item.dragging {
+            opacity: 0.5;
+            background: #f1f2f6;
+            box-shadow: 0 12px 24px rgba(0,0,0,0.1);
+            transform: scale(1.02);
         }
 
         .timeline-item.routine { border-left-color: var(--routine); }
@@ -75,17 +72,24 @@
         .timeline-item.calendar { border-left-color: var(--calendar); }
         .timeline-item.task { border-left-color: var(--task); }
 
-        .item-left { display: flex; align-items: center; gap: 12px; flex-grow: 1; }
+        .item-left { display: flex; align-items: center; gap: 12px; flex-grow: 1; min-width: 0; }
 
         .time-input {
             font-size: 14px; font-weight: 700; color: #2f3640; border: none;
             background: #f1f2f6; padding: 4px 8px; border-radius: 8px; width: 60px; text-align: center;
+            flex-shrink: 0;
         }
 
-        .title-input { font-size: 15px; font-weight: 500; border: none; background: transparent; width: 100%; color: var(--text-main); padding: 4px; }
+        /* 📝 折り返し対応のテキスト入力エリア */
+        .title-container { flex-grow: 1; min-width: 0; position: relative; }
+        .title-input {
+            font-size: 15px; font-weight: 500; border: none; background: transparent;
+            width: 100%; color: var(--text-main); padding: 4px;
+            white-space: pre-wrap; word-break: break-all; /* 画面端で綺麗に折り返す設定 */
+        }
         .title-input:focus, .time-input:focus { background: #ffeaa7; outline: none; border-radius: 4px; }
 
-        .item-right { display: flex; align-items: center; gap: 12px; }
+        .item-right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
         .delete-btn { background: none; border: none; color: #ff7675; font-size: 18px; cursor: pointer; padding: 4px; }
 
         .checkbox-container { position: relative; cursor: pointer; width: 22px; height: 22px; }
@@ -116,7 +120,6 @@
         .send-btn svg { width: 18px; height: 18px; fill: white; }
 
         .status-indicator { text-align: center; font-size: 12px; color: #6c5ce7; font-weight: bold; margin-bottom: 12px; display: none; }
-        
         .key-reset { font-size: 11px; color: var(--text-sub); background: none; border: none; text-decoration: underline; margin-top: 10px; cursor: pointer; }
     </style>
 </head>
@@ -128,7 +131,7 @@
 </div>
 
 <div id="ai-response" class="ai-response-box">
-    確定ルーティンをセットしました！今日のカレンダーの予定、思いつきの追加タスク、夕飯のメニューなどを教えてください。
+    予定を同期しました！タスクの文字は自動で折り返されます。カードを上下に並び替えると、時間も自動で再計算されますよ。
 </div>
 
 <div id="status" class="status-indicator">🎀 AIがスケジュールを調整中...</div>
@@ -151,14 +154,11 @@
 <script>
     let API_KEY = localStorage.getItem('GEMINI_API_KEY');
     if (!API_KEY) {
-        API_KEY = prompt("GeminiのAPIキーを入力してください。\n（キーはブラウザ内に安全に保存されます）");
+        API_KEY = prompt("GeminiのAPIキーを入力してください。");
         if (API_KEY) localStorage.setItem('GEMINI_API_KEY', API_KEY);
     }
 
-    function resetApiKey() {
-        localStorage.removeItem('GEMINI_API_KEY');
-        location.reload();
-    }
+    function resetApiKey() { localStorage.removeItem('GEMINI_API_KEY'); location.reload(); }
 
     const baseRoutines = [
         { time: "07:00", title: "起床・お部屋リセット（カーテン開け/布団整え）", type: "routine", done: false },
@@ -178,6 +178,7 @@
         document.getElementById('current-date').innerText = d.toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
     }
 
+    // タイムライン描画 ＋ ドラッグ＆ドロップイベントの紐付け
     function renderTimeline() {
         const container = document.getElementById('timeline');
         container.innerHTML = '';
@@ -186,12 +187,15 @@
         currentEvents.forEach((ev, idx) => {
             const item = document.createElement('div');
             item.className = `timeline-item ${ev.type} ${ev.done ? 'is-done' : ''}`;
+            item.draggable = true; // ドラッグ可能に
+            item.dataset.index = idx;
             
-            // ★【バグ修正】216行目の onchange を updateTitle に正しく修正しました
             item.innerHTML = `
                 <div class="item-left">
                     <input type="text" class="time-input" value="${ev.time}" onchange="updateTime(${idx}, this.value)">
-                    <input type="text" class="title-input" value="${ev.title}" onchange="updateTitle(${idx}, this.value)">
+                    <div class="title-container">
+                        <input type="text" class="title-input" value="${ev.title}" onchange="updateTitle(${idx}, this.value)">
+                    </div>
                 </div>
                 <div class="item-right">
                     <button class="delete-btn" onclick="deleteItem(${idx})">🗑️</button>
@@ -201,6 +205,10 @@
                     </label>
                 </div>
             `;
+            
+            // ドラッグ＆ドロップのリスナー追加（スマホのタッチ・PC両対応）
+            setupDragAndDropEvents(item);
+            
             container.appendChild(item);
         });
     }
@@ -210,6 +218,70 @@
     function deleteItem(idx) { currentEvents.splice(idx, 1); renderTimeline(); }
     function toggleItem(idx) { currentEvents[idx].done = !currentEvents[idx].done; renderTimeline(); }
 
+    // 🔄 ドラッグ＆ドロップおよび時間自動計算ロジック
+    let dragSrcIndex = null;
+
+    function setupDragAndDropEvents(item) {
+        item.addEventListener('dragstart', (e) => {
+            dragSrcIndex = item.dataset.index;
+            item.classList.add('dragging');
+        });
+
+        item.addEventListener('dragend', () => {
+            item.classList.remove('dragging');
+            recalculateTimesAfterDrag();
+        });
+
+        item.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            const container = document.getElementById('timeline');
+            const draggingItem = container.querySelector('.dragging');
+            const siblings = [...container.querySelectorAll('.timeline-item:not(.dragging)')];
+            
+            let nextSibling = siblings.find(sibling => {
+                return e.clientY <= sibling.getBoundingClientRect().top + sibling.getBoundingClientRect().height / 2;
+            });
+            
+            container.insertBefore(draggingItem, nextSibling);
+        });
+    }
+
+    // 並び替えた後のドキュメント順を元に、新しい時間をパズルする関数
+    function recalculateTimesAfterDrag() {
+        const container = document.getElementById('timeline');
+        const items = [...container.querySelectorAll('.timeline-item')];
+        
+        // 現在の画面上の並び順で配列を再構築
+        let reorderedEvents = items.map(item => currentEvents[item.dataset.index]);
+        
+        // 移動したアイテムの新しい位置を特定
+        items.forEach((item, newIdx) => {
+            if (item.dataset.index == dragSrcIndex) {
+                // 上下のアイテムの時間を元に、中間の時間を計算する
+                let prevTime = newIdx > 0 ? reorderedEvents[newIdx - 1].time : "06:00";
+                let nextTime = newIdx < reorderedEvents.length - 1 ? reorderedEvents[newIdx + 1].time : "23:59";
+                
+                reorderedEvents[newIdx].time = calculateMiddleTime(prevTime, nextTime);
+            }
+        });
+
+        currentEvents = reorderedEvents;
+        renderTimeline();
+    }
+
+    // 2つの時間（例 "10:00" と "11:00"）のちょうど中間の時間を返す便利関数
+    function calculateMiddleTime(t1, t2) {
+        const toMins = t => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+        const toStr = m => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+        
+        let m1 = toMins(t1);
+        let m2 = toMins(t2);
+        if (m1 >= m2) m2 += 10; // 逆転防止のための安全バッファ
+        
+        return toStr(Math.floor((m1 + m2) / 2));
+    }
+
+    // Gemini API 通信ロジック
     async function handleSend() {
         const input = document.getElementById('chat-input');
         const text = input.value.trim();
