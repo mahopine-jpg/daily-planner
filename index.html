@@ -19,6 +19,9 @@
             --task: #dcdde1;
             --calendar: #ff7675;
             --border-color: #e8e7f5;
+            /* 📱 LINE風トークルーム用カラー */
+            --line-bg: #abc0d4; 
+            --line-green: #85e24a;
         }
 
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -28,43 +31,14 @@
             background-color: var(--bg-color);
             color: var(--text-main);
             margin: 0;
-            padding: 24px 16px 160px 16px;
+            padding: 24px 16px 360px 16px; /* トーク画面の厚み分、下の余白をさらに広げました */
             max-width: 480px;
             margin: 0 auto;
         }
 
-        .app-header {
-            text-align: center;
-            margin-bottom: 24px;
-            padding-top: env(safe-area-inset-top);
-        }
-        .app-header h1 {
-            font-size: 26px;
-            font-weight: 700;
-            color: var(--accent);
-            margin: 0 0 6px 0;
-            letter-spacing: 0.5px;
-        }
-        .app-header .date-str {
-            font-size: 15px;
-            font-weight: 600;
-            color: #8e8cb2;
-            margin: 0;
-        }
-
-        .ai-response-box {
-            background: #f0edff; border: 1px solid #dcd6ff; border-radius: 20px;
-            padding: 16px; margin-bottom: 24px; font-size: 14px; line-height: 1.6; color: #574b90;
-            display: flex; gap: 12px; align-items: flex-start;
-            box-shadow: 0 4px 12px rgba(108, 92, 231, 0.04);
-        }
-        .ai-avatar {
-            width: 42px; height: 42px; background: #ffffff; border-radius: 50%;
-            display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0;
-            box-shadow: 0 2px 6px rgba(108, 92, 231, 0.1);
-        }
-        .ai-content { flex-grow: 1; }
-        .ai-name { font-weight: 700; font-size: 12px; color: #8e8cb2; margin-bottom: 2px; }
+        .app-header { text-align: center; margin-bottom: 24px; padding-top: env(safe-area-inset-top); }
+        .app-header h1 { font-size: 26px; font-weight: 700; color: var(--accent); margin: 0 0 6px 0; letter-spacing: 0.5px; }
+        .app-header .date-str { font-size: 15px; font-weight: 600; color: #8e8cb2; margin: 0; }
 
         .timeline { position: relative; }
 
@@ -97,46 +71,83 @@
             outline: none;
         }
 
-        .title-input {
-            font-size: 16px; font-weight: 700; border: none; background: transparent;
-            width: 100%; color: #2d3748; outline: none;
-            white-space: pre-wrap; word-break: break-all;
-        }
-        
-        .detail-input {
-            font-size: 13px; font-weight: 400; border: none; background: transparent;
-            width: 100%; color: #718096; outline: none;
-            white-space: pre-wrap; word-break: break-all;
-        }
-        
+        .title-input { font-size: 16px; font-weight: 700; border: none; background: transparent; width: 100%; color: #2d3748; outline: none; white-space: pre-wrap; word-break: break-all; }
+        .detail-input { font-size: 13px; font-weight: 400; border: none; background: transparent; width: 100%; color: #718096; outline: none; white-space: pre-wrap; word-break: break-all; }
         .title-input:focus, .detail-input:focus, .time-input:focus { background: #fff9db; border-radius: 4px; }
 
-        .delete-btn {
-            position: absolute; top: 12px; right: 12px;
-            background: none; border: none; color: #e53e3e; font-size: 14px;
-            font-weight: bold; cursor: pointer; padding: 4px; opacity: 0.3;
-        }
+        .delete-btn { position: absolute; top: 12px; right: 12px; background: none; border: none; color: #e53e3e; font-size: 14px; font-weight: bold; cursor: pointer; padding: 4px; opacity: 0.3; }
         .delete-btn:hover { opacity: 0.8; }
 
         .timeline-item.is-done { opacity: 0.4; }
         .timeline-item.is-done .title-input, .timeline-item.is-done .detail-input { text-decoration: line-through; }
 
+        /* 💬 【大改造】LINE風チャットダッシュボード全体のデザイン */
         .chat-section {
             position: fixed; bottom: 0; left: 0; right: 0;
-            background: rgba(245, 244, 250, 0.9); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-            padding: 16px; padding-bottom: calc(16px + env(safe-area-inset-bottom));
+            background: #f6f6f9;
+            padding: 0 0 calc(12px + env(safe-area-inset-bottom)) 0;
             border-top: 1px solid var(--border-color); z-index: 1000;
+            box-shadow: 0 -10px 30px rgba(0,0,0,0.05);
         }
-        .chat-wrapper {
-            max-width: 440px; margin: 0 auto; display: flex; gap: 10px;
-            background: #ffffff; padding: 6px 6px 6px 16px; border-radius: 28px;
-            align-items: center; box-shadow: 0 8px 20px rgba(108,92,231,0.06); border: 1px solid #e2e1f0;
+        
+        .chat-container-inner { max-width: 480px; margin: 0 auto; display: flex; flex-direction: column; }
+
+        .status-indicator { text-align: center; font-size: 11px; color: #6c5ce7; font-weight: bold; padding: 4px 0; background: #eef0f6; border-bottom: 1px solid #e2e1f0; }
+
+        /* 📱 LINEのトーク画面を再現したスクロールエリア */
+        .chat-talk-room {
+            background-color: var(--line-bg);
+            height: 200px; /* 過去の会話が綺麗に見渡せる絶妙な高さ */
+            overflow-y: auto;
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
         }
-        .chat-input { flex-grow: 1; border: none; background: transparent; font-size: 15px; outline: none; color: var(--text-main); }
-        .send-btn { background: #6c5ce7; color: white; border: none; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 12px rgba(108, 92, 231, 0.3); }
-        .send-btn svg { width: 18px; height: 18px; fill: white; }
-        .status-indicator { text-align: center; font-size: 12px; color: #6c5ce7; font-weight: bold; margin-bottom: 12px; display: none; }
-        .key-reset { font-size: 11px; color: var(--text-sub); background: none; border: none; text-decoration: underline; margin-top: 10px; cursor: pointer; }
+
+        /* 💬 共通の吹き出しの土台 */
+        .chat-bubble-row { display: flex; width: 100%; align-items: flex-start; gap: 8px; }
+        .chat-bubble-row.user-side { justify-content: flex-end; } /* ユーザーは右寄せ */
+
+        .chat-avatar { width: 34px; height: 34px; background: #ffffff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .chat-msg-body { display: flex; flex-direction: column; max-width: 70%; min-width: 0; }
+        .chat-sender-name { font-weight: 700; font-size: 11px; color: #556677; margin-bottom: 3px; padding-left: 2px; }
+
+        /* ネコ助の白い吹き出し（左側） */
+        .bubble {
+            background: #ffffff; color: #2c3e50; font-size: 14px; line-height: 1.45;
+            padding: 8px 12px; border-radius: 16px; border-top-left-radius: 4px; /* LINE特有のカドのツノ */
+            word-break: break-all; white-space: pre-wrap; box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            position: relative;
+        }
+
+        /* Mihoさんの緑の吹き出し（右側） */
+        .user-side .bubble {
+            background: var(--line-green); color: #000000;
+            border-radius: 16px; border-top-right-radius: 4px; /* 右側のツノ */
+            border-top-left-radius: 16px;
+        }
+
+        /* 反映ボタンのLINE風インライン配置 */
+        .apply-wrapper { margin-top: 6px; display: flex; justify-content: flex-start; }
+        .apply-btn {
+            background: #2ecc71; color: white; border: none; padding: 5px 12px;
+            border-radius: 14px; font-size: 11px; font-weight: bold; cursor: pointer;
+            box-shadow: 0 2px 6px rgba(46, 204, 113, 0.2); display: flex; align-items: center; gap: 4px;
+        }
+
+        /* 📝 最下部の文字入力エリア */
+        .input-bar-wrapper { padding: 8px 12px; background: #ffffff; display: flex; gap: 8px; align-items: flex-end; }
+        .chat-input {
+            flex-grow: 1; border: 1px solid #e2e1f0; background: #f8f9fa; font-size: 15px; outline: none;
+            color: var(--text-main); resize: none; max-height: 70px; padding: 6px 12px;
+            font-family: inherit; line-height: 1.4; border-radius: 18px;
+        }
+        .chat-input:focus { background: #ffffff; border-color: var(--accent); }
+        .send-btn { background: #6c5ce7; color: white; border: none; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; }
+        .send-btn svg { width: 16px; height: 16px; fill: white; }
+        
+        .key-reset { font-size: 10px; color: var(--text-sub); background: none; border: none; text-decoration: underline; text-align: center; display: block; margin-top: 4px; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -146,28 +157,35 @@
     <div id="current-date" class="date-str">Loading...</div>
 </div>
 
-<div class="ai-response-box">
-    <div class="ai-avatar">🐱</div>
-    <div class="ai-content">
-        <div class="ai-name">ネコ助</div>
-        <div id="ai-response">朝のルーティンを修正したニャ！ペットたちのエサやりやトイレ掃除を追加して、お弁当作りは休憩なしの『07:30』にきっちり合わせたニャ。これで最高の朝をスタートしてニャ〜🐾</div>
-    </div>
-</div>
-
-<div id="status" class="status-indicator">🎀 AIがスケジュールを調整中...</div>
-
 <div id="timeline" class="timeline"></div>
 
-<div style="text-align: center;">
-    <button class="key-reset" onclick="resetApiKey()">APIキーを再設定する</button>
-</div>
-
+<!-- 📱 下部に集約されたLINEトーク画面風ダッシュボード -->
 <div class="chat-section">
-    <div class="chat-wrapper">
-        <input type="text" id="chat-input" class="chat-input" placeholder="予定、思いつき、夕飯のメニューを入力...">
-        <button class="send-btn" onclick="handleSend()">
-            <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
-        </button>
+    <div class="chat-container-inner">
+        
+        <div id="status" class="status-indicator" style="display:none;">🎀 ネコ助が既読メッセージを入力中ニャ...</div>
+
+        <!-- 📱 LINE風トークルームエリア（会話履歴がここに積み重なります） -->
+        <div id="chat-talk-room" class="chat-talk-room">
+            <!-- 初期メッセージ -->
+            <div class="chat-bubble-row">
+                <div class="chat-avatar">🐱</div>
+                <div class="chat-msg-body">
+                    <div class="chat-sender-name">ネコ助</div>
+                    <div class="bubble">今日のご予定や、夕飯のメニューを教えてニャ！チャットで何回か作戦会議をして、バッチリな段取りになったら吹き出しの下に出る『反映する🐾』ボタンを押してニャ〜🐾</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 📝 最下部の入力文字バー -->
+        <div class="input-bar-wrapper">
+            <textarea id="chat-input" class="chat-input" rows="1" placeholder="予定、メニューを入力ニャ..." oninput="autoGrow(this)"></textarea>
+            <button class="send-btn" onclick="handleSend()">
+                <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+            </button>
+        </div>
+        
+        <button class="key-reset" onclick="resetApiKey()">APIキー再設定</button>
     </div>
 </div>
 
@@ -180,9 +198,8 @@
 
     function resetApiKey() { localStorage.removeItem('GEMINI_API_KEY'); location.reload(); }
 
-    // 🌞 毎日の確定ルーティンデータ（ご指摘通りに修正しましたニャ！）
-    const baseRoutines = [
-        { time: "07:00", title: "起床・お部屋リセット＆ペットお世話", detail: "カーテンを開ける/布団を整える/亀にエサ/猫にごはん/猫のトイレ掃除（実働20分・残り10分バッファ）", type: "routine", done: false },
+    let currentEvents = [
+        { time: "07:00", title: "起床・お部屋リセット", detail: "カーテンを開ける/布団を整える/亀にエサ/猫にごはん/猫のトイレ掃除（実働20分・残り10分バッファ）", type: "routine", done: false },
         { time: "07:30", title: "お弁当作り 🍱", detail: "子供のお弁当準備（20分）※休憩なしでダイレクトに開始！", type: "routine", done: false },
         { time: "08:00", title: "朝食＆ゆったり休憩 ☕️", detail: "子供が出かけた後の朝ごはん。【最重要】食後にサプリを飲む。", type: "routine", done: false },
         { time: "09:05", title: "朝の集中家事＆身支度 🧹", detail: "食器洗い ➔ 洗濯機回す ➔ 掃除ロボ起動。その間に自身の洗面・身支度。", type: "routine", done: false },
@@ -192,7 +209,8 @@
         { time: "23:50", title: "就寝 🌙", detail: "夜更かし厳禁・健康のための絶対死守ライン！", type: "routine", done: false }
     ];
 
-    let currentEvents = [...baseRoutines];
+    let proposedScheduleTemp = null;
+    let activeApplyButtonId = null; // どのボタンが現在有効かを追跡
 
     function updateDateDisplay() {
         const d = new Date();
@@ -200,10 +218,14 @@
         document.getElementById('current-date').innerText = `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日（${weekDayStr}曜日）`;
     }
 
+    function autoGrow(element) {
+        element.style.height = "auto";
+        element.style.height = (element.scrollHeight - 10) + "px";
+    }
+
     function renderTimeline() {
         const container = document.getElementById('timeline');
         container.innerHTML = '';
-        
         currentEvents.sort((a, b) => a.time.localeCompare(b.time));
         
         currentEvents.forEach((ev, idx) => {
@@ -231,30 +253,74 @@
     function formatTimeInput(val) {
         let str = val.replace(/[０-９]/g, (s) => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
         let nums = str.replace(/[^0-9]/g, '');
-        if (nums.length === 4) {
-            return nums.substring(0, 2) + ":" + nums.substring(2, 4);
-        }
+        if (nums.length === 4) return nums.substring(0, 2) + ":" + nums.substring(2, 4);
         return val;
     }
 
-    function calculateMiddleTime(t1, t2) {
-        const toMins = t => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
-        const toStr = m => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
-        let m1 = toMins(t1); let m2 = toMins(t2);
-        if (m1 >= m2) m2 += 15; 
-        let middle = Math.floor((m1 + m2) / 2);
-        return toStr(middle);
-    }
-
-    function updateTime(idx, newTime) { 
-        currentEvents[idx].time = formatTimeInput(newTime); 
-        renderTimeline(); 
-    }
-    
+    function updateTime(idx, newTime) { currentEvents[idx].time = formatTimeInput(newTime); renderTimeline(); }
     function updateTitle(idx, newTitle) { currentEvents[idx].title = newTitle; }
     function updateDetail(idx, newDetail) { currentEvents[idx].detail = newDetail; }
     function deleteItem(idx) { currentEvents.splice(idx, 1); renderTimeline(); }
     function toggleItem(idx) { currentEvents[idx].done = !currentEvents[idx].done; renderTimeline(); }
+
+    // 🐾 最新のボタンからスケジュールを反映する関数
+    function applyProposedSchedule(buttonEl, jsonStr) {
+        const proposed = JSON.parse(decodeURIComponent(jsonStr));
+        const doneTitles = currentEvents.filter(e => e.done).map(e => e.title);
+        
+        proposed.forEach(newEvent => {
+            if (doneTitles.includes(newEvent.title)) {
+                newEvent.done = true;
+            }
+        });
+
+        currentEvents = proposed;
+        renderTimeline();
+
+        // 押し終わったボタンを「反映済み」に変えて無効化する
+        buttonEl.disabled = true;
+        buttonEl.style.background = "#95a5a6";
+        buttonEl.innerText = "反映しました ✓";
+    }
+
+    // トークルームに吹き出しを追加して自動スクロールする便利ロジック
+    function appendChatBubble(sender, text, isUser = false, rawJson = null) {
+        const room = document.getElementById('chat-talk-room');
+        const row = document.createElement('div');
+        row.className = `chat-bubble-row ${isUser ? 'user-side' : ''}`;
+
+        if (isUser) {
+            row.innerHTML = `
+                <div class="chat-msg-body">
+                    <div class="bubble">${text}</div>
+                </div>
+            `;
+        } else {
+            let buttonHtml = '';
+            if (rawJson) {
+                // ボタン個別にデータを埋め込んで、過去のボタンでもその時の提案を反映できるようにします
+                const encodedJson = encodeURIComponent(JSON.stringify(rawJson));
+                buttonHtml = `
+                    <div class="apply-wrapper">
+                        <button class="apply-btn" onclick="applyProposedSchedule(this, '${encodedJson}')">
+                            <span>📅 この案をタイムラインに反映する🐾</span>
+                        </button>
+                    </div>
+                `;
+            }
+            row.innerHTML = `
+                <div class="chat-avatar">🐱</div>
+                <div class="chat-msg-body">
+                    <div class="chat-sender-name">${sender}</div>
+                    <div class="bubble">${text}${buttonHtml}</div>
+                </div>
+            `;
+        }
+
+        room.appendChild(row);
+        // 新しい吹き出しが出たら、一番下までズルッと自動スクロール
+        room.scrollTop = room.scrollHeight;
+    }
 
     async function handleSend() {
         const input = document.getElementById('chat-input');
@@ -263,22 +329,32 @@
         if (!API_KEY) { alert("APIキーが設定されていません。"); return; }
 
         input.value = '';
+        input.style.height = "auto";
+        
+        // 1. まずMihoさんの打った文字を右側に緑の吹き出しで追加
+        appendChatBubble("ユーザー", text, true);
+
         document.getElementById('status').style.display = 'block';
 
         const systemPrompt = `
         あなたはユーザーのスケジュールを一緒に育てる優秀なAIアシスタント「ネコ助」です。
-        語尾には必ず「〜ニャ」「〜ニャ〜🐾」をつけて、親切で可愛らしく喋ってください。
-        ユーザーから新しい予定、思いつき、夕飯のメニューなどが届いたら、現在のタイムラインの状況を踏まえて、新しいスケジュールを提案してください。
+        語尾には必ず「〜ニャ」「〜ニャ〜🐾」をつけて、親切で可愛らしくおしゃべりしてください。
 
-        【現在のタイムラインデータ】: ${JSON.stringify(currentEvents)}
+        【現在の決定済みタイムラインデータ】: ${JSON.stringify(currentEvents)}
+        
+        【最も重要な役割】:
+        あなたはユーザーとチャットを重ねて段取りを「ツメる」のが仕事です。
+        ユーザーの要望を聞いて、「こうするのはどうニャ？」とアイデアをチャットで会話してください。
+        
+        会話の結果、最新のスケジュール案を裏側でデータとして渡すために、コメントの後に必ず『===DATA===』を挟んで最新のタイムライン全体のJSONデータを出力してください。
 
         【指示】:
         1. 新しいタスクを追加する場合、太字になる"title"（10文字〜15文字程度の簡潔な名前）と、その詳細説明となる"detail"（具体的な手順や補足説明）の2つに必ず分解してデータを生成してください。
         2. 夕飯のメニューが指定されたら、17:30〜18:10の間にそのメニューに最適な調理ステップを2ステップ程度に分解し、"cooking"タイプとしてタイムラインに必ず組み込んでください。
-        3. 出力は、ユーザーへの「おしゃべり（返答コメント）」と、更新後の「新しいタイムラインのJSONデータ」を両方含めるため、必ず以下の【出力形式】を厳守してください。
+        3. 出力形式は必ず以下を厳守してください。
 
         【出力形式】:
-        ココにネコ助としての可愛らしい返答コメントを書いてくださいニャ。
+        ココにネコ助としての可愛らしい返答コメント（作戦の提案など）を書いてくださいニャ。
         ===DATA===
         [
           {"time": "07:00", "title": "起床・お部屋リセット", "detail": "カーテン開け/布団整え...", "type": "routine", "done": false},
@@ -300,16 +376,17 @@
             
             const parts = aiText.split('===DATA===');
             if (parts.length === 2) {
-                document.getElementById('ai-response').innerText = parts[0].trim();
                 let jsonText = parts[1].replace(/```json|```/g, '').trim();
-                currentEvents = JSON.parse(jsonText);
-                renderTimeline();
+                let parsedJson = JSON.parse(jsonText);
+                
+                // 2. ネコ助の返答と、その時点の反映ボタンを左側に白の吹き出しで追加
+                appendChatBubble("ネコ助", parts[0].trim(), false, parsedJson);
             } else {
-                document.getElementById('ai-response').innerText = "スケジュールをうまくパースできなかったニャ。もう一度試してほしいニャ。";
+                appendChatBubble("ネコ助", "ごめんニャ、作戦をうまくパースできなかったニャ。もう一度言ってほしいニャ。");
             }
 
         } catch (error) {
-            document.getElementById('ai-response').innerText = "エラーが発生したニャ。キーや通信を確認してニャ。";
+            appendChatBubble("ネコ助", "エラーが発生しちゃったニャ……キーや通信を確認してみてニャ。");
             console.error(error);
         } finally {
             document.getElementById('status').style.display = 'none';
