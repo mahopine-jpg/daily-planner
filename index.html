@@ -64,7 +64,6 @@
 
         .item-center { flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; padding-right: 12px; }
         
-        /* ⏰ 時間表示とチャイム用ベルマークをまとめる横並び */
         .time-row-wrapper { display: flex; align-items: center; gap: 8px; }
         .time-input {
             font-size: 13px; font-weight: 700; color: #6c5ce7; border: none;
@@ -72,7 +71,6 @@
             outline: none;
         }
 
-        /* 🔔 チャイム設定用の可愛いトグルボタン */
         .chime-toggle-btn {
             background: none; border: none; font-size: 15px; cursor: pointer; padding: 2px;
             opacity: 0.3; transition: opacity 0.2s, transform 0.1s;
@@ -89,7 +87,6 @@
         .timeline-item.is-done { opacity: 0.4; }
         .timeline-item.is-done .title-input, .timeline-item.is-done .detail-input { text-decoration: line-through; }
 
-        /* LINE風チャットダッシュボード全体のデザイン */
         .chat-section {
             position: fixed; bottom: 0; left: 0; right: 0;
             background: #f6f6f9;
@@ -164,14 +161,14 @@
 <div class="chat-section">
     <div class="chat-container-inner">
         
-        <div id="status" class="status-indicator" style="display:none;">🎀 ネコ助が既読メッセージを入力中ニャ...</div>
+        <div id="status" class="status-indicator" style="display:none;">🎀 ネコ助が作戦を組み立て中ニャ...</div>
 
         <div id="chat-talk-room" class="chat-talk-room">
             <div class="chat-bubble-row">
                 <div class="chat-avatar">🐱</div>
                 <div class="chat-msg-body">
                     <div class="chat-sender-name">ネコ助</div>
-                    <div class="bubble">ここぞという予定に『チャイム』をセットできるようにしたニャ！ベルのアイコン（🔕 ➔ 🔔）をタップするか、チャットで「〜時にチャム鳴らして」と言って反映すれば、その時間になった瞬間にピンポーン♪と鳴るニャ〜🐾</div>
+                    <div class="bubble">ルーティンを新しく上書きしたニャ！18:00から夜の家事と調理を開始して、19:30に夕食＆片付けの時間をバッチリ確保したニャ。18時までは自由時間ニャ〜🐾</div>
                 </div>
             </div>
         </div>
@@ -196,20 +193,20 @@
 
     function resetApiKey() { localStorage.removeItem('GEMINI_API_KEY'); location.reload(); }
 
-    // ★ 重要なタスクに初期値として chime: true / false を持たせるようにしたニャ
+    // 🌞 夜の家事・夕食スケジュールをご指定通りにアップデートしたニャ！
     let currentEvents = [
         { time: "07:00", title: "起床・お部屋リセット", detail: "カーテンを開ける/布団を整える/亀にエサ/猫にごはん/猫のトイレ掃除（実働20分・残り10分バッファ）", type: "routine", done: false, chime: false },
         { time: "07:30", title: "お弁当作り 🍱", detail: "子供のお弁当準備（20分）※休憩なしでダイレクトに開始！", type: "routine", done: false, chime: false },
-        { time: "08:00", title: "朝食＆ゆったり休憩 ☕️", detail: "子供が出かけた後の朝ごはん。【最重要】食後にサプリを飲む。", type: "routine", done: false, chime: true }, // サプリは大事だからON！
+        { time: "08:00", title: "朝食＆ゆったり休憩 ☕️", detail: "子供が出かけた後の朝ごはん。【最重要】食後にサプリを飲む。", type: "routine", done: false, chime: true },
         { time: "09:05", title: "朝の集中家事＆身支度 🧹", detail: "食器洗い ➔ 洗濯機回す ➔ 掃除ロボ起動。その間に自身の洗面・身支度。", type: "routine", done: false, chime: false },
         { time: "12:00", title: "ランチ休憩 🥗", detail: "調理・食事・片付けをゆったり含む（90分枠）", type: "routine", done: false, chime: false },
-        { time: "18:00", title: "夜の家事スタート 🐈", detail: "カーテン閉め/猫ちゃんにご飯をあげる/お米研ぎ炊飯開始。", type: "routine", done: false, chime: false },
+        { time: "18:00", title: "夜の家事＆夕食の調理スタート 🐈", detail: "カーテンを閉める、猫にごはんをあげる、炊飯器のセット、夕食の調理を19:30までに終わらせる。", type: "routine", done: false, chime: false },
+        { time: "19:30", title: "夕食＆片付け 🍽️", detail: "家族での楽しい夕食タイムと、その後の食器洗い・シンク片付け。21:00までにのんびり完了させるニャ。", type: "routine", done: false, chime: false },
         { time: "22:00", title: "入浴＆自由時間 🎵", detail: "お風呂にゆっくり浸かり、BTSの動画を見たり韓国語の勉強をするリラックスタイム。", type: "routine", done: false, chime: false },
-        { time: "23:50", title: "就寝 🌙", detail: "夜更かし厳禁・健康のための絶対死守ライン！", type: "routine", done: false, chime: true } // 就寝死守も大事だからON！
+        { time: "23:50", title: "就寝 🌙", detail: "夜更かし厳禁・健康のための絶対死守ライン！", type: "routine", done: false, chime: true }
     ];
 
-    let proposedScheduleTemp = null;
-    let lastCheckedMinute = ""; // 同じ分に何回も鳴るのを防ぐ防波堤ニャ
+    let lastCheckedMinute = "";
 
     function updateDateDisplay() {
         const d = new Date();
@@ -222,6 +219,16 @@
         element.style.height = (element.scrollHeight - 10) + "px";
     }
 
+    document.addEventListener("click", () => {
+        try {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            if (AudioContext) {
+                const ctx = new AudioContext();
+                if (ctx.state === "suspended") ctx.resume();
+            }
+        } catch(e){}
+    }, { once: true });
+
     function renderTimeline() {
         const container = document.getElementById('timeline');
         container.innerHTML = '';
@@ -231,7 +238,6 @@
             const item = document.createElement('div');
             item.className = `timeline-item ${ev.type} ${ev.done ? 'is-done' : ''}`;
             
-            // 🔔 状態に合わせて絵文字をパチパチ切り替えるニャ
             let chimeIcon = ev.chime ? "🔔" : "🔕";
             let chimeClass = ev.chime ? "chime-toggle-btn active" : "chime-toggle-btn";
             
@@ -243,7 +249,6 @@
                 <div class="item-center">
                     <div class="time-row-wrapper">
                         <input type="text" class="time-input" value="${ev.time}" onchange="updateTime(${idx}, this.value)">
-                        <!-- チャイムの切り替えスイッチを設置 -->
                         <button class="${chimeClass}" onclick="toggleChime(${idx})">${chimeIcon}</button>
                     </div>
                     <div class="title-input" contenteditable="true" onblur="updateTitle(${idx}, this.innerText)">${ev.title}</div>
@@ -255,61 +260,44 @@
         });
     }
 
-    // 🎵 iPhoneの内蔵スピーカーで綺麗な「ピンポーン♪」を鳴らす高度な合成ロジックニャ！
     function playChimeSound() {
         try {
             const AudioContext = window.AudioContext || window.webkitAudioContext;
             if (!AudioContext) return;
             const ctx = new AudioContext();
             
-            // 1音目（ピン：高い音）
             const osc1 = ctx.createOscillator();
             const gain1 = ctx.createGain();
             osc1.type = 'sine';
-            osc1.frequency.setValueAtTime(880, ctx.currentTime); // A5の音
-            gain1.gain.setValueAtTime(0.3, ctx.currentTime);
-            gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8);
-            osc1.connect(gain1);
-            gain1.connect(ctx.destination);
+            osc1.frequency.setValueAtTime(880, ctx.currentTime);
+            gain1.gain.setValueAtTime(0.2, ctx.currentTime);
+            gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+            osc1.connect(gain1); gain1.connect(ctx.destination);
             
-            // 2音目（ポーン：低い音、少し遅れて鳴らす）
             const osc2 = ctx.createOscillator();
             const gain2 = ctx.createGain();
             osc2.type = 'sine';
-            osc2.frequency.setValueAtTime(659.25, ctx.currentTime + 0.3); // E5の音
+            osc2.frequency.setValueAtTime(659.25, ctx.currentTime + 0.25);
             gain2.gain.setValueAtTime(0, ctx.currentTime);
-            gain2.gain.setValueAtTime(0.3, ctx.currentTime + 0.3);
-            gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.2);
-            osc2.connect(gain2);
-            gain2.connect(ctx.destination);
+            gain2.gain.setValueAtTime(0.2, ctx.currentTime + 0.25);
+            gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.0);
+            osc2.connect(gain2); gain2.connect(ctx.destination);
             
-            osc1.start(ctx.currentTime);
-            osc1.stop(ctx.currentTime + 0.8);
-            osc2.start(ctx.currentTime + 0.3);
-            osc2.stop(ctx.currentTime + 1.2);
-        } catch (e) {
-            console.error("チャイム再生エラーだニャ:", e);
-        }
+            osc1.start(ctx.currentTime); osc1.stop(ctx.currentTime + 0.6);
+            osc2.start(ctx.currentTime + 0.25); osc2.stop(ctx.currentTime + 1.0);
+        } catch (e) {}
     }
 
-    // 🕵️‍♂️ バックグラウンドで1分ごとに時間を監視するパトロール処理ニャ
     function startTimePatrol() {
         setInterval(() => {
             const now = new Date();
             const currentStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-            
-            // 1分間の間に1回だけ判定を通す処理ニャ
             if (currentStr !== lastCheckedMinute) {
                 lastCheckedMinute = currentStr;
-                
-                // 🔔マークがついていて、今現在の時間とピッタリ一致する未完了タスクがあるかチェック！
                 const shouldRing = currentEvents.some(ev => ev.chime && !ev.done && ev.time === currentStr);
-                
-                if (shouldRing) {
-                    playChimeSound(); // ➔ 🔔ピンポーン♪
-                }
+                if (shouldRing) playChimeSound();
             }
-        }, 1000); // 1秒ごとに超高精度でパトロールするニャ
+        }, 1000);
     }
 
     function formatTimeInput(val) {
@@ -324,28 +312,16 @@
     function updateDetail(idx, newDetail) { currentEvents[idx].detail = newDetail; }
     function deleteItem(idx) { currentEvents.splice(idx, 1); renderTimeline(); }
     function toggleItem(idx) { currentEvents[idx].done = !currentEvents[idx].done; renderTimeline(); }
-    
-    // 🔔 ボタンをタップしてチャイムのオンオフを切り替える関数ニャ
-    function toggleChime(idx) {
-        currentEvents[idx].chime = !currentEvents[idx].chime;
-        // 初めてチャイムボタンを触った時に、iPhoneに音を鳴らすセキュリティー許可（おまじない）をもらうニャ
-        playChimeSound(); 
-        renderTimeline();
-    }
+    function toggleChime(idx) { currentEvents[idx].chime = !currentEvents[idx].chime; renderTimeline(); }
 
     function applyProposedSchedule(buttonEl, jsonStr) {
         const proposed = JSON.parse(decodeURIComponent(jsonStr));
         const doneTitles = currentEvents.filter(e => e.done).map(e => e.title);
         
         proposed.forEach(newEvent => {
-            if (doneTitles.includes(newEvent.title)) {
-                newEvent.done = true;
-            }
-            // 既存の予定でMihoさんが自分でベルマークをカスタムしていたら、その設定もAIに壊されないよう死守するニャ
+            if (doneTitles.includes(newEvent.title)) newEvent.done = true;
             const matchOld = currentEvents.find(old => old.title === newEvent.title);
-            if (matchOld && matchOld.chime !== undefined) {
-                newEvent.chime = matchOld.chime;
-            }
+            if (matchOld && matchOld.chime !== undefined) newEvent.chime = matchOld.chime;
         });
 
         currentEvents = proposed;
@@ -400,20 +376,29 @@
         appendChatBubble("ユーザー", text, true);
         document.getElementById('status').style.display = 'block';
 
+        // ★ 命令から17:30〜18:10の時間を完全に消去し、18:00〜19:30の夜家事調理ルートに最適化
         const systemPrompt = `
-        あなたはユーザーのスケジュールを一緒に育てる優秀なAIアシスタント「ネコ助」です。
+        あなたはユーザーのスケジュール設計を助ける優秀なAIアシスタント「ネコ助」です。
         語尾には必ず「〜ニャ」「〜ニャ〜🐾」をつけて、親切で可愛らしくおしゃべりしてください。
 
-        【現在の決定済みタイムラインデータ】: ${JSON.stringify(currentEvents)}
+        【現在のタイムラインデータ】: ${JSON.stringify(currentEvents)}
         
-        【最も重要な役割】:
-        ユーザーと会話して段取りをツメてください。最新案を提案する際はコメントの後に『===DATA===』を挟んで全体のJSONデータを出力してください。
-        
-        ユーザーが「このタスクは重要」「チャイムを鳴らして」「アラームをかけて」などのニュアンスを指定した場合、対象タスクのデータに "chime": true をセットして提案してください。特に指定がない場合は "chime": false にしてください。
+        ユーザーの要望を聞いて、「こうするのはどうニャ？」とアイデアをチャットで会話してください。
+        そして、コメントの後に必ず『===DATA===』を挟んで、現在のデータにユーザーの要望（新予定や夕飯の調理ステップなど）をマージした全体の最新JSON配列データのみを正確に出力してください。
 
-        【データ生成の約束】:
-        1. 新しいタスクを追加する場合、太字になる"title"と詳細説明の"detail"に必ず分解してデータを生成してください。
-        2. 夕飯のメニューが指定されたら、17:30〜18:10の間に調理ステップを2ステップ分解し、"cooking"タイプとしてタイムラインに組み込んでください。
+        【生成ルール】:
+        1. ユーザーから夕飯のメニューや献立が指定されたら、18:00に開始する「夜の家事＆夕食の調理スタート」のタスク詳細(detail)の中に、そのメニューの具体的な調理ステップを書き加えるか、18:00〜19:30の間に"type": "cooking"として調理手順を追加してください。変な夕方の時間帯に勝手に単独の調理タスクを作らないでください。
+        2. 午後は18:00まで基本的に自由時間となるため、特別な午後のお出かけ予定が指定されない限り、12:00〜18:00の間はタイムラインを空けておいてください。
+        3. 新しい予定を追加する場合、太字になる"title"と詳細説明の"detail"、および"type": "task"（または"cooking"や"calendar"）、"chime": falseのオブジェクトを正確に作ってください。
+        4. 起床(07:00)、お弁当(07:30)、朝食(08:00)、朝家事(09:05)、ランチ(12:00)、夜家事調理(18:00)、夕食片付け(19:30)、入浴(22:00)、就寝(23:50)のベースルーティンは絶対に消さないでください。
+
+        【絶対厳守の出力フォーマット】:
+        ユーザーへの親切なコメントをココに書くニャ。
+        ===DATA===
+        [
+          {"time": "07:00", "title": "起床・お部屋リセット", "detail": "...", "type": "routine", "done": false, "chime": false},
+          ...
+        ]
         `;
 
         try {
@@ -434,10 +419,10 @@
                 let parsedJson = JSON.parse(jsonText);
                 appendChatBubble("ネコ助", parts[0].trim(), false, parsedJson);
             } else {
-                appendChatBubble("ネコ助", "ごめんニャ、うまくパースできなかったニャ。");
+                appendChatBubble("ネコ助", "ごめんニャ、作戦をうまくまとめられなかったニャ。もう一度送ってみてほしいニャ。");
             }
         } catch (error) {
-            appendChatBubble("ネコ助", "エラーが発生しちゃったニャ……");
+            appendChatBubble("ネコ助", "エラーが発生しちゃったニャ……データが混線したかもしれないニャ。");
             console.error(error);
         } finally {
             document.getElementById('status').style.display = 'none';
@@ -446,7 +431,7 @@
 
     updateDateDisplay();
     renderTimeline();
-    startTimePatrol(); // 🕵️‍♂️ バックグラウンドパトロールを開始ニャ！
+    startTimePatrol();
 </script>
 </body>
 </html>
