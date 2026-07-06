@@ -30,7 +30,8 @@
             background-color: var(--bg-color);
             color: var(--text-main);
             margin: 0;
-            padding: 24px 16px 360px 16px; 
+            /* ⚠️ チャットが可変式（最大全画面近く）になるため、下部パディングを調整 */
+            padding: 24px 16px 300px 16px; 
             max-width: 480px;
             margin: 0 auto;
         }
@@ -87,21 +88,37 @@
         .timeline-item.is-done { opacity: 0.4; }
         .timeline-item.is-done .title-input, .timeline-item.is-done .detail-input { text-decoration: line-through; }
 
+        /* 📱 引っ張って広げられる可変式モーダルチャットシート */
         .chat-section {
             position: fixed; bottom: 0; left: 0; right: 0;
-            background: #f6f6f9;
-            padding: 0 0 calc(12px + env(safe-area-inset-bottom)) 0;
+            background: #ffffff;
+            border-top-left-radius: 24px; border-top-right-radius: 24px;
             border-top: 1px solid var(--border-color); z-index: 1000;
-            box-shadow: 0 -10px 30px rgba(0,0,0,0.05);
+            box-shadow: 0 -10px 30px rgba(0,0,0,0.08);
+            display: flex; flex-direction: column;
+            /* 縦幅の制限。初期状態は JS で制御するニャ */
+            height: 270px; 
+            max-height: calc(100vh - env(safe-area-inset-top) - 20px);
+            min-height: 110px;
+            transition: height 0.1s ease-out; /* ドラッグの追従をスムーズにするニャ */
         }
         
-        .chat-container-inner { max-width: 480px; margin: 0 auto; display: flex; flex-direction: column; }
+        .chat-container-inner { max-width: 480px; margin: 0 auto; display: flex; flex-direction: column; width: 100%; height: 100%; }
+
+        /* 👆 引っ張るためのオシャレな上部ハンドルバー */
+        .chat-drag-handle {
+            width: 100%; height: 26px; background: #ffffff; border-top-left-radius: 24px; border-top-right-radius: 24px;
+            display: flex; align-items: center; justify-content: center; cursor: ns-resize; touch-action: none;
+        }
+        .chat-drag-handle::after {
+            content: ""; width: 40px; height: 5px; background: #cbd5e0; border-radius: 3px;
+        }
 
         .status-indicator { text-align: center; font-size: 11px; color: #6c5ce7; font-weight: bold; padding: 4px 0; background: #eef0f6; border-bottom: 1px solid #e2e1f0; }
 
         .chat-talk-room {
             background-color: var(--line-bg);
-            height: 180px; 
+            flex-grow: 1; /* 縦幅に合わせてビョーンと伸び縮みするニャ */
             overflow-y: auto;
             padding: 14px;
             display: flex;
@@ -136,7 +153,7 @@
             box-shadow: 0 2px 6px rgba(46, 204, 113, 0.2); display: flex; align-items: center; gap: 4px;
         }
 
-        .input-bar-wrapper { padding: 8px 12px; background: #ffffff; display: flex; gap: 8px; align-items: flex-end; }
+        .input-bar-wrapper { padding: 8px 12px calc(8px + env(safe-area-inset-bottom)) 12px; background: #ffffff; display: flex; gap: 8px; align-items: flex-end; border-top: 1px solid #f0edf7; }
         .chat-input {
             flex-grow: 1; border: 1px solid #e2e1f0; background: #f8f9fa; font-size: 15px; outline: none;
             color: var(--text-main); resize: none; max-height: 70px; padding: 6px 12px;
@@ -146,7 +163,7 @@
         .send-btn { background: #6c5ce7; color: white; border: none; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; }
         .send-btn svg { width: 16px; height: 16px; fill: white; }
         
-        .key-reset { font-size: 10px; color: var(--text-sub); background: none; border: none; text-decoration: underline; text-align: center; display: block; margin-top: 4px; cursor: pointer; }
+        .key-reset { font-size: 10px; color: var(--text-sub); background: none; border: none; text-decoration: underline; text-align: center; display: block; margin-bottom: 6px; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -158,9 +175,10 @@
 
 <div id="timeline" class="timeline"></div>
 
-<div class="chat-section">
+<div id="movable-chat" class="chat-section">
+    <div class="chat-drag-handle" id="drag-handle"></div>
+
     <div class="chat-container-inner">
-        
         <div id="status" class="status-indicator" style="display:none;">🎀 ネコ助が作戦を組み立て中ニャ...</div>
 
         <div id="chat-talk-room" class="chat-talk-room">
@@ -168,7 +186,7 @@
                 <div class="chat-avatar">🐱</div>
                 <div class="chat-msg-body">
                     <div class="chat-sender-name">ネコ助</div>
-                    <div class="bubble">ルーティンを新しく上書きしたニャ！18:00から夜の家事と調理を開始して、19:30に夕食＆片付けの時間をバッチリ確保したニャ。18時までは自由時間ニャ〜🐾</div>
+                    <div class="bubble">Mihoさん、今日もお疲れ様ニャ！1日の段取りを一緒に育てるニャ🐾 予定の追加や変更、夕飯のメニューが決まったら、いつでもここに話しかけてニャ〜！</div>
                 </div>
             </div>
         </div>
@@ -193,7 +211,6 @@
 
     function resetApiKey() { localStorage.removeItem('GEMINI_API_KEY'); location.reload(); }
 
-    // 🌞 夜の家事・夕食スケジュールをご指定通りにアップデートしたニャ！
     let currentEvents = [
         { time: "07:00", title: "起床・お部屋リセット", detail: "カーテンを開ける/布団を整える/亀にエサ/猫にごはん/猫のトイレ掃除（実働20分・残り10分バッファ）", type: "routine", done: false, chime: false },
         { time: "07:30", title: "お弁当作り 🍱", detail: "子供のお弁当準備（20分）※休憩なしでダイレクトに開始！", type: "routine", done: false, chime: false },
@@ -376,7 +393,6 @@
         appendChatBubble("ユーザー", text, true);
         document.getElementById('status').style.display = 'block';
 
-        // ★ 命令から17:30〜18:10の時間を完全に消去し、18:00〜19:30の夜家事調理ルートに最適化
         const systemPrompt = `
         あなたはユーザーのスケジュール設計を助ける優秀なAIアシスタント「ネコ助」です。
         語尾には必ず「〜ニャ」「〜ニャ〜🐾」をつけて、親切で可愛らしくおしゃべりしてください。
@@ -384,7 +400,7 @@
         【現在のタイムラインデータ】: ${JSON.stringify(currentEvents)}
         
         ユーザーの要望を聞いて、「こうするのはどうニャ？」とアイデアをチャットで会話してください。
-        そして、コメントの後に必ず『===DATA===』を挟んで、現在のデータにユーザーの要望（新予定や夕飯の調理ステップなど）をマージした全体の最新JSON配列データのみを正確に出力してください。
+        形成したコメントの後に必ず『===DATA===』を挟んで、現在のデータにユーザーの要望をマージした全体の最新JSON配列データのみを正確に出力してください。
 
         【生成ルール】:
         1. ユーザーから夕飯のメニューや献立が指定されたら、18:00に開始する「夜の家事＆夕食の調理スタート」のタスク詳細(detail)の中に、そのメニューの具体的な調理ステップを書き加えるか、18:00〜19:30の間に"type": "cooking"として調理手順を追加してください。変な夕方の時間帯に勝手に単独の調理タスクを作らないでください。
@@ -428,6 +444,57 @@
             document.getElementById('status').style.display = 'none';
         }
     }
+
+    // 👆 【超高度スワイプ・ドラッグ開閉ロジック】iPhoneのタッチ操作に対応！
+    const movableChat = document.getElementById('movable-chat');
+    const dragHandle = document.getElementById('drag-handle');
+    
+    let isDragging = false;
+    let startY = 0;
+    let startHeight = 0;
+
+    // 初期化時の高さを270pxに設定するニャ
+    movableChat.style.height = '270px';
+
+    function initDrag(e) {
+        isDragging = true;
+        startY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
+        startHeight = parseInt(document.defaultView.getComputedStyle(movableChat).height, 10);
+        document.documentElement.addEventListener('mousemove', doDrag, false);
+        document.documentElement.addEventListener('touchmove', doDrag, { passive: false });
+        document.documentElement.addEventListener('mouseup', stopDrag, false);
+        document.documentElement.addEventListener('touchend', stopDrag, false);
+    }
+
+    function doDrag(e) {
+        if (!isDragging) return;
+        const clientY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
+        // マウスや指が上に進むほど（clientYが小さくなるほど）高さが高くなるニャ
+        const newHeight = startHeight + (startY - clientY);
+        movableChat.style.height = newHeight + 'px';
+        
+        // スワイプ中に画面が勝手にスクロールするのを防ぐおまじないニャ
+        if (e.cancelable) e.preventDefault();
+    }
+
+    function stopDrag() {
+        isDragging = false;
+        document.documentElement.removeEventListener('mousemove', doDrag, false);
+        document.documentElement.removeEventListener('touchmove', doDrag, false);
+        document.documentElement.removeEventListener('mouseup', stopDrag, false);
+        document.documentElement.removeEventListener('touchend', stopDrag, false);
+
+        // 磁石のようにパチっといい感じの高さにフィットさせるスナップ処理ニャ
+        const finalHeight = parseInt(movableChat.style.height, 10);
+        if (finalHeight < 160) {
+            movableChat.style.height = '110px'; // 最小化（入力欄だけ見える）
+        } else if (finalHeight > window.innerHeight * 0.6) {
+            movableChat.style.height = 'calc(100vh - env(safe-area-inset-top) - 40px)'; // 最大化（ほぼ全画面）
+        }
+    }
+
+    dragHandle.addEventListener('mousedown', initDrag, false);
+    dragHandle.addEventListener('touchstart', initDrag, { passive: false });
 
     updateDateDisplay();
     renderTimeline();
