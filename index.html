@@ -19,7 +19,6 @@
             --task: #dcdde1;
             --calendar: #ff7675;
             --border-color: #e8e7f5;
-            /* 📱 LINE風トークルーム用カラー */
             --line-bg: #abc0d4; 
             --line-green: #85e24a;
         }
@@ -31,7 +30,7 @@
             background-color: var(--bg-color);
             color: var(--text-main);
             margin: 0;
-            padding: 24px 16px 360px 16px; /* トーク画面の厚み分、下の余白をさらに広げました */
+            padding: 24px 16px 360px 16px; 
             max-width: 480px;
             margin: 0 auto;
         }
@@ -65,11 +64,20 @@
 
         .item-center { flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; padding-right: 12px; }
         
+        /* ⏰ 時間表示とチャイム用ベルマークをまとめる横並び */
+        .time-row-wrapper { display: flex; align-items: center; gap: 8px; }
         .time-input {
             font-size: 13px; font-weight: 700; color: #6c5ce7; border: none;
             background: #f0edff; width: 55px; padding: 3px 4px; border-radius: 6px; text-align: center;
             outline: none;
         }
+
+        /* 🔔 チャイム設定用の可愛いトグルボタン */
+        .chime-toggle-btn {
+            background: none; border: none; font-size: 15px; cursor: pointer; padding: 2px;
+            opacity: 0.3; transition: opacity 0.2s, transform 0.1s;
+        }
+        .chime-toggle-btn.active { opacity: 1; transform: scale(1.1); }
 
         .title-input { font-size: 16px; font-weight: 700; border: none; background: transparent; width: 100%; color: #2d3748; outline: none; white-space: pre-wrap; word-break: break-all; }
         .detail-input { font-size: 13px; font-weight: 400; border: none; background: transparent; width: 100%; color: #718096; outline: none; white-space: pre-wrap; word-break: break-all; }
@@ -81,7 +89,7 @@
         .timeline-item.is-done { opacity: 0.4; }
         .timeline-item.is-done .title-input, .timeline-item.is-done .detail-input { text-decoration: line-through; }
 
-        /* 💬 【大改造】LINE風チャットダッシュボード全体のデザイン */
+        /* LINE風チャットダッシュボード全体のデザイン */
         .chat-section {
             position: fixed; bottom: 0; left: 0; right: 0;
             background: #f6f6f9;
@@ -94,10 +102,9 @@
 
         .status-indicator { text-align: center; font-size: 11px; color: #6c5ce7; font-weight: bold; padding: 4px 0; background: #eef0f6; border-bottom: 1px solid #e2e1f0; }
 
-        /* 📱 LINEのトーク画面を再現したスクロールエリア */
         .chat-talk-room {
             background-color: var(--line-bg);
-            height: 200px; /* 過去の会話が綺麗に見渡せる絶妙な高さ */
+            height: 180px; 
             overflow-y: auto;
             padding: 14px;
             display: flex;
@@ -105,30 +112,26 @@
             gap: 12px;
         }
 
-        /* 💬 共通の吹き出しの土台 */
         .chat-bubble-row { display: flex; width: 100%; align-items: flex-start; gap: 8px; }
-        .chat-bubble-row.user-side { justify-content: flex-end; } /* ユーザーは右寄せ */
+        .chat-bubble-row.user-side { justify-content: flex-end; } 
 
         .chat-avatar { width: 34px; height: 34px; background: #ffffff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
         .chat-msg-body { display: flex; flex-direction: column; max-width: 70%; min-width: 0; }
         .chat-sender-name { font-weight: 700; font-size: 11px; color: #556677; margin-bottom: 3px; padding-left: 2px; }
 
-        /* ネコ助の白い吹き出し（左側） */
         .bubble {
             background: #ffffff; color: #2c3e50; font-size: 14px; line-height: 1.45;
-            padding: 8px 12px; border-radius: 16px; border-top-left-radius: 4px; /* LINE特有のカドのツノ */
+            padding: 8px 12px; border-radius: 16px; border-top-left-radius: 4px; 
             word-break: break-all; white-space: pre-wrap; box-shadow: 0 1px 2px rgba(0,0,0,0.05);
             position: relative;
         }
 
-        /* Mihoさんの緑の吹き出し（右側） */
         .user-side .bubble {
             background: var(--line-green); color: #000000;
-            border-radius: 16px; border-top-right-radius: 4px; /* 右側のツノ */
+            border-radius: 16px; border-top-right-radius: 4px; 
             border-top-left-radius: 16px;
         }
 
-        /* 反映ボタンのLINE風インライン配置 */
         .apply-wrapper { margin-top: 6px; display: flex; justify-content: flex-start; }
         .apply-btn {
             background: #2ecc71; color: white; border: none; padding: 5px 12px;
@@ -136,7 +139,6 @@
             box-shadow: 0 2px 6px rgba(46, 204, 113, 0.2); display: flex; align-items: center; gap: 4px;
         }
 
-        /* 📝 最下部の文字入力エリア */
         .input-bar-wrapper { padding: 8px 12px; background: #ffffff; display: flex; gap: 8px; align-items: flex-end; }
         .chat-input {
             flex-grow: 1; border: 1px solid #e2e1f0; background: #f8f9fa; font-size: 15px; outline: none;
@@ -159,25 +161,21 @@
 
 <div id="timeline" class="timeline"></div>
 
-<!-- 📱 下部に集約されたLINEトーク画面風ダッシュボード -->
 <div class="chat-section">
     <div class="chat-container-inner">
         
         <div id="status" class="status-indicator" style="display:none;">🎀 ネコ助が既読メッセージを入力中ニャ...</div>
 
-        <!-- 📱 LINE風トークルームエリア（会話履歴がここに積み重なります） -->
         <div id="chat-talk-room" class="chat-talk-room">
-            <!-- 初期メッセージ -->
             <div class="chat-bubble-row">
                 <div class="chat-avatar">🐱</div>
                 <div class="chat-msg-body">
                     <div class="chat-sender-name">ネコ助</div>
-                    <div class="bubble">今日のご予定や、夕飯のメニューを教えてニャ！チャットで何回か作戦会議をして、バッチリな段取りになったら吹き出しの下に出る『反映する🐾』ボタンを押してニャ〜🐾</div>
+                    <div class="bubble">ここぞという予定に『チャイム』をセットできるようにしたニャ！ベルのアイコン（🔕 ➔ 🔔）をタップするか、チャットで「〜時にチャム鳴らして」と言って反映すれば、その時間になった瞬間にピンポーン♪と鳴るニャ〜🐾</div>
                 </div>
             </div>
         </div>
 
-        <!-- 📝 最下部の入力文字バー -->
         <div class="input-bar-wrapper">
             <textarea id="chat-input" class="chat-input" rows="1" placeholder="予定、メニューを入力ニャ..." oninput="autoGrow(this)"></textarea>
             <button class="send-btn" onclick="handleSend()">
@@ -198,19 +196,20 @@
 
     function resetApiKey() { localStorage.removeItem('GEMINI_API_KEY'); location.reload(); }
 
+    // ★ 重要なタスクに初期値として chime: true / false を持たせるようにしたニャ
     let currentEvents = [
-        { time: "07:00", title: "起床・お部屋リセット", detail: "カーテンを開ける/布団を整える/亀にエサ/猫にごはん/猫のトイレ掃除（実働20分・残り10分バッファ）", type: "routine", done: false },
-        { time: "07:30", title: "お弁当作り 🍱", detail: "子供のお弁当準備（20分）※休憩なしでダイレクトに開始！", type: "routine", done: false },
-        { time: "08:00", title: "朝食＆ゆったり休憩 ☕️", detail: "子供が出かけた後の朝ごはん。【最重要】食後にサプリを飲む。", type: "routine", done: false },
-        { time: "09:05", title: "朝の集中家事＆身支度 🧹", detail: "食器洗い ➔ 洗濯機回す ➔ 掃除ロボ起動。その間に自身の洗面・身支度。", type: "routine", done: false },
-        { time: "12:00", title: "ランチ休憩 🥗", detail: "調理・食事・片付けをゆったり含む（90分枠）", type: "routine", done: false },
-        { time: "18:00", title: "夜の家事スタート 🐈", detail: "カーテン閉め/猫ちゃんにご飯をあげる/お米研ぎ炊飯開始。", type: "routine", done: false },
-        { time: "22:00", title: "入浴＆自由時間 🎵", detail: "お風呂にゆっくり浸かり、BTSの動画を見たり韓国語の勉強をするリラックスタイム。", type: "routine", done: false },
-        { time: "23:50", title: "就寝 🌙", detail: "夜更かし厳禁・健康のための絶対死守ライン！", type: "routine", done: false }
+        { time: "07:00", title: "起床・お部屋リセット", detail: "カーテンを開ける/布団を整える/亀にエサ/猫にごはん/猫のトイレ掃除（実働20分・残り10分バッファ）", type: "routine", done: false, chime: false },
+        { time: "07:30", title: "お弁当作り 🍱", detail: "子供のお弁当準備（20分）※休憩なしでダイレクトに開始！", type: "routine", done: false, chime: false },
+        { time: "08:00", title: "朝食＆ゆったり休憩 ☕️", detail: "子供が出かけた後の朝ごはん。【最重要】食後にサプリを飲む。", type: "routine", done: false, chime: true }, // サプリは大事だからON！
+        { time: "09:05", title: "朝の集中家事＆身支度 🧹", detail: "食器洗い ➔ 洗濯機回す ➔ 掃除ロボ起動。その間に自身の洗面・身支度。", type: "routine", done: false, chime: false },
+        { time: "12:00", title: "ランチ休憩 🥗", detail: "調理・食事・片付けをゆったり含む（90分枠）", type: "routine", done: false, chime: false },
+        { time: "18:00", title: "夜の家事スタート 🐈", detail: "カーテン閉め/猫ちゃんにご飯をあげる/お米研ぎ炊飯開始。", type: "routine", done: false, chime: false },
+        { time: "22:00", title: "入浴＆自由時間 🎵", detail: "お風呂にゆっくり浸かり、BTSの動画を見たり韓国語の勉強をするリラックスタイム。", type: "routine", done: false, chime: false },
+        { time: "23:50", title: "就寝 🌙", detail: "夜更かし厳禁・健康のための絶対死守ライン！", type: "routine", done: false, chime: true } // 就寝死守も大事だからON！
     ];
 
     let proposedScheduleTemp = null;
-    let activeApplyButtonId = null; // どのボタンが現在有効かを追跡
+    let lastCheckedMinute = ""; // 同じ分に何回も鳴るのを防ぐ防波堤ニャ
 
     function updateDateDisplay() {
         const d = new Date();
@@ -232,14 +231,20 @@
             const item = document.createElement('div');
             item.className = `timeline-item ${ev.type} ${ev.done ? 'is-done' : ''}`;
             
+            // 🔔 状態に合わせて絵文字をパチパチ切り替えるニャ
+            let chimeIcon = ev.chime ? "🔔" : "🔕";
+            let chimeClass = ev.chime ? "chime-toggle-btn active" : "chime-toggle-btn";
+            
             item.innerHTML = `
                 <label class="checkbox-container">
                     <input type="checkbox" ${ev.done ? 'checked' : ''} onclick="toggleItem(${idx})">
                     <span class="checkmark"></span>
                 </label>
                 <div class="item-center">
-                    <div>
+                    <div class="time-row-wrapper">
                         <input type="text" class="time-input" value="${ev.time}" onchange="updateTime(${idx}, this.value)">
+                        <!-- チャイムの切り替えスイッチを設置 -->
+                        <button class="${chimeClass}" onclick="toggleChime(${idx})">${chimeIcon}</button>
                     </div>
                     <div class="title-input" contenteditable="true" onblur="updateTitle(${idx}, this.innerText)">${ev.title}</div>
                     <div class="detail-input" contenteditable="true" onblur="updateDetail(${idx}, this.innerText)">${ev.detail || ''}</div>
@@ -248,6 +253,63 @@
             `;
             container.appendChild(item);
         });
+    }
+
+    // 🎵 iPhoneの内蔵スピーカーで綺麗な「ピンポーン♪」を鳴らす高度な合成ロジックニャ！
+    function playChimeSound() {
+        try {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            if (!AudioContext) return;
+            const ctx = new AudioContext();
+            
+            // 1音目（ピン：高い音）
+            const osc1 = ctx.createOscillator();
+            const gain1 = ctx.createGain();
+            osc1.type = 'sine';
+            osc1.frequency.setValueAtTime(880, ctx.currentTime); // A5の音
+            gain1.gain.setValueAtTime(0.3, ctx.currentTime);
+            gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8);
+            osc1.connect(gain1);
+            gain1.connect(ctx.destination);
+            
+            // 2音目（ポーン：低い音、少し遅れて鳴らす）
+            const osc2 = ctx.createOscillator();
+            const gain2 = ctx.createGain();
+            osc2.type = 'sine';
+            osc2.frequency.setValueAtTime(659.25, ctx.currentTime + 0.3); // E5の音
+            gain2.gain.setValueAtTime(0, ctx.currentTime);
+            gain2.gain.setValueAtTime(0.3, ctx.currentTime + 0.3);
+            gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.2);
+            osc2.connect(gain2);
+            gain2.connect(ctx.destination);
+            
+            osc1.start(ctx.currentTime);
+            osc1.stop(ctx.currentTime + 0.8);
+            osc2.start(ctx.currentTime + 0.3);
+            osc2.stop(ctx.currentTime + 1.2);
+        } catch (e) {
+            console.error("チャイム再生エラーだニャ:", e);
+        }
+    }
+
+    // 🕵️‍♂️ バックグラウンドで1分ごとに時間を監視するパトロール処理ニャ
+    function startTimePatrol() {
+        setInterval(() => {
+            const now = new Date();
+            const currentStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+            
+            // 1分間の間に1回だけ判定を通す処理ニャ
+            if (currentStr !== lastCheckedMinute) {
+                lastCheckedMinute = currentStr;
+                
+                // 🔔マークがついていて、今現在の時間とピッタリ一致する未完了タスクがあるかチェック！
+                const shouldRing = currentEvents.some(ev => ev.chime && !ev.done && ev.time === currentStr);
+                
+                if (shouldRing) {
+                    playChimeSound(); // ➔ 🔔ピンポーン♪
+                }
+            }
+        }, 1000); // 1秒ごとに超高精度でパトロールするニャ
     }
 
     function formatTimeInput(val) {
@@ -262,8 +324,15 @@
     function updateDetail(idx, newDetail) { currentEvents[idx].detail = newDetail; }
     function deleteItem(idx) { currentEvents.splice(idx, 1); renderTimeline(); }
     function toggleItem(idx) { currentEvents[idx].done = !currentEvents[idx].done; renderTimeline(); }
+    
+    // 🔔 ボタンをタップしてチャイムのオンオフを切り替える関数ニャ
+    function toggleChime(idx) {
+        currentEvents[idx].chime = !currentEvents[idx].chime;
+        // 初めてチャイムボタンを触った時に、iPhoneに音を鳴らすセキュリティー許可（おまじない）をもらうニャ
+        playChimeSound(); 
+        renderTimeline();
+    }
 
-    // 🐾 最新のボタンからスケジュールを反映する関数
     function applyProposedSchedule(buttonEl, jsonStr) {
         const proposed = JSON.parse(decodeURIComponent(jsonStr));
         const doneTitles = currentEvents.filter(e => e.done).map(e => e.title);
@@ -272,33 +341,31 @@
             if (doneTitles.includes(newEvent.title)) {
                 newEvent.done = true;
             }
+            // 既存の予定でMihoさんが自分でベルマークをカスタムしていたら、その設定もAIに壊されないよう死守するニャ
+            const matchOld = currentEvents.find(old => old.title === newEvent.title);
+            if (matchOld && matchOld.chime !== undefined) {
+                newEvent.chime = matchOld.chime;
+            }
         });
 
         currentEvents = proposed;
         renderTimeline();
 
-        // 押し終わったボタンを「反映済み」に変えて無効化する
         buttonEl.disabled = true;
         buttonEl.style.background = "#95a5a6";
         buttonEl.innerText = "反映しました ✓";
     }
 
-    // トークルームに吹き出しを追加して自動スクロールする便利ロジック
     function appendChatBubble(sender, text, isUser = false, rawJson = null) {
         const room = document.getElementById('chat-talk-room');
         const row = document.createElement('div');
         row.className = `chat-bubble-row ${isUser ? 'user-side' : ''}`;
 
         if (isUser) {
-            row.innerHTML = `
-                <div class="chat-msg-body">
-                    <div class="bubble">${text}</div>
-                </div>
-            `;
+            row.innerHTML = `<div class="chat-msg-body"><div class="bubble">${text}</div></div>`;
         } else {
             let buttonHtml = '';
             if (rawJson) {
-                // ボタン個別にデータを埋め込んで、過去のボタンでもその時の提案を反映できるようにします
                 const encodedJson = encodeURIComponent(JSON.stringify(rawJson));
                 buttonHtml = `
                     <div class="apply-wrapper">
@@ -318,7 +385,6 @@
         }
 
         room.appendChild(row);
-        // 新しい吹き出しが出たら、一番下までズルッと自動スクロール
         room.scrollTop = room.scrollHeight;
     }
 
@@ -331,9 +397,7 @@
         input.value = '';
         input.style.height = "auto";
         
-        // 1. まずMihoさんの打った文字を右側に緑の吹き出しで追加
         appendChatBubble("ユーザー", text, true);
-
         document.getElementById('status').style.display = 'block';
 
         const systemPrompt = `
@@ -343,23 +407,13 @@
         【現在の決定済みタイムラインデータ】: ${JSON.stringify(currentEvents)}
         
         【最も重要な役割】:
-        あなたはユーザーとチャットを重ねて段取りを「ツメる」のが仕事です。
-        ユーザーの要望を聞いて、「こうするのはどうニャ？」とアイデアをチャットで会話してください。
+        ユーザーと会話して段取りをツメてください。最新案を提案する際はコメントの後に『===DATA===』を挟んで全体のJSONデータを出力してください。
         
-        会話の結果、最新のスケジュール案を裏側でデータとして渡すために、コメントの後に必ず『===DATA===』を挟んで最新のタイムライン全体のJSONデータを出力してください。
+        ユーザーが「このタスクは重要」「チャイムを鳴らして」「アラームをかけて」などのニュアンスを指定した場合、対象タスクのデータに "chime": true をセットして提案してください。特に指定がない場合は "chime": false にしてください。
 
-        【指示】:
-        1. 新しいタスクを追加する場合、太字になる"title"（10文字〜15文字程度の簡潔な名前）と、その詳細説明となる"detail"（具体的な手順や補足説明）の2つに必ず分解してデータを生成してください。
-        2. 夕飯のメニューが指定されたら、17:30〜18:10の間にそのメニューに最適な調理ステップを2ステップ程度に分解し、"cooking"タイプとしてタイムラインに必ず組み込んでください。
-        3. 出力形式は必ず以下を厳守してください。
-
-        【出力形式】:
-        ココにネコ助としての可愛らしい返答コメント（作戦の提案など）を書いてくださいニャ。
-        ===DATA===
-        [
-          {"time": "07:00", "title": "起床・お部屋リセット", "detail": "カーテン開け/布団整え...", "type": "routine", "done": false},
-          ...
-        ]
+        【データ生成の約束】:
+        1. 新しいタスクを追加する場合、太字になる"title"と詳細説明の"detail"に必ず分解してデータを生成してください。
+        2. 夕飯のメニューが指定されたら、17:30〜18:10の間に調理ステップを2ステップ分解し、"cooking"タイプとしてタイムラインに組み込んでください。
         `;
 
         try {
@@ -378,15 +432,12 @@
             if (parts.length === 2) {
                 let jsonText = parts[1].replace(/```json|```/g, '').trim();
                 let parsedJson = JSON.parse(jsonText);
-                
-                // 2. ネコ助の返答と、その時点の反映ボタンを左側に白の吹き出しで追加
                 appendChatBubble("ネコ助", parts[0].trim(), false, parsedJson);
             } else {
-                appendChatBubble("ネコ助", "ごめんニャ、作戦をうまくパースできなかったニャ。もう一度言ってほしいニャ。");
+                appendChatBubble("ネコ助", "ごめんニャ、うまくパースできなかったニャ。");
             }
-
         } catch (error) {
-            appendChatBubble("ネコ助", "エラーが発生しちゃったニャ……キーや通信を確認してみてニャ。");
+            appendChatBubble("ネコ助", "エラーが発生しちゃったニャ……");
             console.error(error);
         } finally {
             document.getElementById('status').style.display = 'none';
@@ -395,6 +446,7 @@
 
     updateDateDisplay();
     renderTimeline();
+    startTimePatrol(); // 🕵️‍♂️ バックグラウンドパトロールを開始ニャ！
 </script>
 </body>
 </html>
