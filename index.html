@@ -30,9 +30,17 @@ html, body { height: 100%; background: var(--bg-color); }
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    background-color: var(--bg-color);
     color: var(--text-main);
     margin: 0;
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+}
+
+/* iOSでは入力欄フォーカス時にSafariがページ全体を強制スクロールすることがあり、
+   bodyを可変サイズのflexコンテナにしていると崩れの原因になる。
+   そのためbody自体は画面に固定し、実際のレイアウトはこの#app-shellが担う。 */
+#app-shell {
     max-width: 480px;
     margin: 0 auto;
     height: 100dvh;
@@ -272,6 +280,7 @@ body {
 </style>
 </head>
 <body>
+<div id="app-shell">
 
 <div class="app-header">
     <h1>Daily Planner AI ✨</h1>
@@ -356,6 +365,8 @@ body {
     </button>
 </div>
 
+</div><!-- /#app-shell -->
+
 <!-- 日記出力モーダル -->
 <div id="diary-overlay" class="diary-overlay">
     <div class="diary-card">
@@ -381,11 +392,23 @@ function resetApiKey() { localStorage.removeItem('GEMINI_API_KEY'); location.rel
 
 const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent';
 
+function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+
+// 「high demand」「overloaded」「unavailable」やHTTP 429/503など、
+// 一時的な混雑が原因とわかるエラーだけ自動でリトライする(それ以外は即座にエラーを返す)
+function isRetryableError(status, msg) {
+    if (status === 429 || status === 503) return true;
+    return /high demand|overloaded|unavailable|temporarily|rate limit/i.test(msg || '');
+}
+
 /* Gemini API呼び出しの共通ヘルパー。
    HTTPエラー・安全フィルタによるブロック・candidates欠落などを個別に検知して
    原因がわかるメッセージを返す(以前は全部「エラーが発生しちゃった」に握りつぶされていた)。
-   maxOutputTokensも明示的に指定し、応答が長くなりがちな予定チャットでの途中切れを防ぐ。 */
-async function callGeminiAPI(promptText, maxOutputTokens) {
+   maxOutputTokensも明示的に指定し、応答が長くなりがちな予定チャットでの途中切れを防ぐ。
+   一時的な混雑エラーは最大2回まで自動リトライする。 */
+async function callGeminiAPI(promptText, maxOutputTokens, attempt) {
+    attempt = attempt || 1;
+    const MAX_ATTEMPTS = 3;
     try {
         const response = await fetch(`${GEMINI_ENDPOINT}?key=${API_KEY}`, {
             method: 'POST',
@@ -402,6 +425,11 @@ async function callGeminiAPI(promptText, maxOutputTokens) {
                 const errData = await response.json();
                 if (errData && errData.error && errData.error.message) msg = errData.error.message;
             } catch (e) {}
+            if (isRetryableError(response.status, msg) && attempt < MAX_ATTEMPTS) {
+                console.warn(`Gemini APIが混雑中のため再試行します(${attempt}回目): ${msg}`);
+                await sleep(attempt * 900);
+                return callGeminiAPI(promptText, maxOutputTokens, attempt + 1);
+            }
             console.error('Gemini APIエラー:', msg);
             return { ok: false, message: msg };
         }
@@ -423,6 +451,11 @@ async function callGeminiAPI(promptText, maxOutputTokens) {
 
         return { ok: true, text: textPart.text };
     } catch (error) {
+        if (isRetryableError(0, error.message) && attempt < MAX_ATTEMPTS) {
+            console.warn(`通信エラーのため再試行します(${attempt}回目): ${error.message}`);
+            await sleep(attempt * 900);
+            return callGeminiAPI(promptText, maxOutputTokens, attempt + 1);
+        }
         console.error('Gemini API呼び出し中に例外が発生しました:', error);
         return { ok: false, message: error.message || String(error) };
     }
@@ -533,6 +566,26 @@ window.addEventListener('orientationchange', setAppHeight);
 if (window.visualViewport) {
     window.visualViewport.addEventListener('resize', setAppHeight);
 }
+
+/* iOS Safariは<textarea>等にフォーカスすると、bodyがfixedでもページ全体を
+   強制的にスクロールしようとすることがあり、これが「タブバーが上に上がってしまう」
+   崩れの原因になる。フォーカス/ブラー直後に window.scrollTo(0,0) で押し戻す。 */
+function pinScrollTop() {
+    if (window.scrollY !== 0 || window.scrollX !== 0) window.scrollTo(0, 0);
+}
+document.addEventListener('focusin', (e) => {
+    if (e.target && (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT')) {
+        setAppHeight();
+        pinScrollTop();
+        setTimeout(pinScrollTop, 50);
+        setTimeout(pinScrollTop, 300); // キーボードのアニメーション完了後にも念のため補正
+    }
+});
+document.addEventListener('focusout', () => {
+    setAppHeight();
+    setTimeout(pinScrollTop, 50);
+    setTimeout(pinScrollTop, 300);
+});
 
 document.addEventListener("click", () => {
     try {
