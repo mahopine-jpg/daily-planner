@@ -26,7 +26,7 @@
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
-html, body { height: 100%; }
+html, body { height: 100%; background: var(--bg-color); }
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -36,6 +36,7 @@ body {
     max-width: 480px;
     margin: 0 auto;
     height: 100dvh;
+    height: var(--app-height, 100dvh);
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -57,6 +58,12 @@ body {
     background: #ffffff; border: 1px solid var(--border-color); width: 40px; height: 40px;
     border-radius: 50%; font-size: 18px; display: flex; align-items: center; justify-content: center;
     cursor: pointer; box-shadow: 0 3px 8px rgba(108,92,231,0.12);
+}
+.nekosuke-face-btn {
+    position: absolute; top: calc(env(safe-area-inset-top) + 14px); left: 14px;
+    background: #fff8ea; border: 1px solid var(--border-color); width: 40px; height: 40px;
+    border-radius: 50%; font-size: 19px; display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 3px 8px rgba(108,92,231,0.12); transition: transform 0.2s;
 }
 
 /* ===== タブコンテンツエリア ===== */
@@ -93,6 +100,40 @@ body {
 .gap-connector .stub-col { width: 24px; flex-shrink: 0; display: flex; justify-content: center; margin-right: 14px; }
 .gap-connector .stub-line { width: 2px; background: var(--line-bg); border-radius: 1px; }
 .gap-connector.is-done-gap .stub-line { background: var(--line-done); }
+
+.nekosuke-row { padding: 2px 0; opacity: 0.88; }
+.nekosuke-gap-avatar {
+    width: 26px; height: 26px; border-radius: 50%; background: transparent;
+    display: flex; align-items: center; justify-content: center; font-size: 15px;
+    flex-shrink: 0; opacity: 0.8;
+}
+.nekosuke-row .connector-line {
+    width: 2px; background-color: transparent;
+    background-image: repeating-linear-gradient(180deg, var(--line-bg) 0 4px, transparent 4px 8px);
+}
+.nekosuke-gap-bubble {
+    background: transparent; border-radius: 0; border: none; box-shadow: none;
+    padding: 3px 2px; font-size: 12.5px; font-weight: 400; font-style: italic;
+    color: var(--text-sub); line-height: 1.5;
+    flex-grow: 1; min-width: 0; align-self: center;
+}
+
+.praise-pop {
+    position: absolute; top: -12px; right: 10px; background: var(--accent); color: #fff;
+    font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 12px;
+    box-shadow: 0 3px 8px rgba(108,92,231,0.3); pointer-events: none;
+    animation: praisePopAnim 1.3s ease forwards;
+}
+@keyframes praisePopAnim {
+    0% { opacity: 0; transform: translateY(6px) scale(0.8); }
+    15% { opacity: 1; transform: translateY(-4px) scale(1.05); }
+    30% { transform: translateY(-6px) scale(1); }
+    75% { opacity: 1; transform: translateY(-8px) scale(1); }
+    100% { opacity: 0; transform: translateY(-22px) scale(0.9); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .praise-pop { animation: none; opacity: 1; }
+}
 
 .now-indicator { display: flex; align-items: center; gap: 8px; padding: 6px 0; margin: 2px 0; }
 .now-indicator .stub-col { width: 24px; flex-shrink: 0; display: flex; justify-content: center; margin-right: 14px; }
@@ -235,38 +276,45 @@ body {
 <div class="app-header">
     <h1>Daily Planner AI ✨</h1>
     <div id="current-date" class="date-str">Loading...</div>
+    <div id="nekosuke-face" class="nekosuke-face-btn" title="ネコ助のいまの気分">🐱</div>
     <button class="diary-btn" onclick="openDiaryModal()" title="日記を書き出す">📔</button>
 </div>
 
 <div class="tab-content-area">
 
-    <!-- 予定表タブ -->
+    <!-- 本日の予定タブ(タイムライン/チャットをセグメント切替) -->
     <div id="tab-schedule" class="tab-panel active">
-        <div class="scroll-area">
-            <div id="timeline" class="timeline-wrap"></div>
-        </div>
-    </div>
+        <div class="meal-panel-inner">
+            <div class="segment-control">
+                <button id="sched-seg-timeline-btn" class="segment-btn active" onclick="switchScheduleView('timeline')">📅 タイムライン</button>
+                <button id="sched-seg-chat-btn" class="segment-btn" onclick="switchScheduleView('chat')">💬 チャット</button>
+            </div>
 
-    <!-- チャットタブ(予定相談) -->
-    <div id="tab-chat" class="tab-panel">
-        <div class="chat-panel-inner">
-            <div id="status" class="status-indicator" style="display:none;">🎀 ネコ助が作戦を組み立て中ニャ...</div>
-            <div id="chat-talk-room" class="chat-talk-room">
-                <div class="chat-bubble-row">
-                    <div class="chat-avatar">🐱</div>
-                    <div class="chat-msg-body">
-                        <div class="chat-sender-name">ネコ助</div>
-                        <div class="bubble">Mihoさん、今日もお疲れ様ニャ！1日の段取りを一緒に育てるニャ🐾 予定の追加や変更があれば、いつでもここに話しかけてニャ〜！</div>
-                    </div>
+            <div id="schedule-view-timeline" class="meal-view active">
+                <div class="scroll-area">
+                    <div id="timeline" class="timeline-wrap"></div>
                 </div>
             </div>
-            <div class="input-bar-wrapper">
-                <textarea id="chat-input" class="chat-input" rows="1" placeholder="予定を入力ニャ..." oninput="autoGrow(this)"></textarea>
-                <button class="send-btn" onclick="handleSend()">
-                    <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
-                </button>
+
+            <div id="schedule-view-chat" class="meal-view">
+                <div id="status" class="status-indicator" style="display:none;">🎀 ネコ助が作戦を組み立て中ニャ...</div>
+                <div id="chat-talk-room" class="chat-talk-room">
+                    <div class="chat-bubble-row">
+                        <div class="chat-avatar">🐱</div>
+                        <div class="chat-msg-body">
+                            <div class="chat-sender-name">ネコ助</div>
+                            <div class="bubble">Mihoさん、今日もお疲れ様ニャ！1日の段取りを一緒に育てるニャ🐾 予定の追加や変更があれば、いつでもここに話しかけてニャ〜！</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="input-bar-wrapper">
+                    <textarea id="chat-input" class="chat-input" rows="1" placeholder="予定を入力ニャ..." oninput="autoGrow(this)"></textarea>
+                    <button class="send-btn" onclick="handleSend()">
+                        <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+                    </button>
+                </div>
+                <button class="key-reset" onclick="resetApiKey()">APIキー再設定</button>
             </div>
-            <button class="key-reset" onclick="resetApiKey()">APIキー再設定</button>
         </div>
     </div>
 
@@ -301,10 +349,7 @@ body {
 
 <div class="tab-bar">
     <button class="tab-bar-btn active" data-tab="tab-schedule" onclick="showTab('tab-schedule', this)">
-        <span class="icon">📅</span><span>予定表</span>
-    </button>
-    <button class="tab-bar-btn" data-tab="tab-chat" onclick="showTab('tab-chat', this)">
-        <span class="icon">💬</span><span>チャット</span>
+        <span class="icon">📅</span><span>本日の予定</span>
     </button>
     <button class="tab-bar-btn" data-tab="tab-meal" onclick="showTab('tab-meal', this)">
         <span class="icon">🍳</span><span>献立＆調理</span>
@@ -411,6 +456,19 @@ function autoGrow(element) {
     element.style.height = (element.scrollHeight - 10) + "px";
 }
 
+/* iOS Safari ではアドレスバー等の増減で 100dvh がずれ、タブバー下に余白が出ることがあるため
+   実際のビューポート高さを都度 --app-height に反映する */
+function setAppHeight() {
+    const h = (window.visualViewport && window.visualViewport.height) ? window.visualViewport.height : window.innerHeight;
+    document.documentElement.style.setProperty('--app-height', h + 'px');
+}
+setAppHeight();
+window.addEventListener('resize', setAppHeight);
+window.addEventListener('orientationchange', setAppHeight);
+if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', setAppHeight);
+}
+
 document.addEventListener("click", () => {
     try {
         const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -429,6 +487,84 @@ function showTab(tabId, btnEl) {
     btnEl.classList.add('active');
 }
 
+let scheduleTabView = 'timeline';
+function switchScheduleView(view) {
+    scheduleTabView = view;
+    document.getElementById('schedule-view-timeline').classList.toggle('active', view === 'timeline');
+    document.getElementById('schedule-view-chat').classList.toggle('active', view === 'chat');
+    document.getElementById('sched-seg-timeline-btn').classList.toggle('active', view === 'timeline');
+    document.getElementById('sched-seg-chat-btn').classList.toggle('active', view === 'chat');
+    if (view === 'timeline') renderTimeline();
+    if (view === 'chat') {
+        const room = document.getElementById('chat-talk-room');
+        room.scrollTop = room.scrollHeight;
+    }
+}
+
+const NEKOSUKE_TIPS = [
+    "この間にちょっと一息つくニャ☕",
+    "余裕があるうちに水分補給しておくニャ🐾",
+    "背伸びして肩をほぐすといいニャ〜",
+    "窓の外を見てリフレッシュするニャ",
+    "深呼吸をひとつ、ふーっとニャ",
+    "好きな音楽でも聴いてみるニャ🎵",
+    "ちょっとだけ歩いてみるニャ",
+    "お茶を一杯いれて休憩するニャ",
+    "遠くを見て目を休めるニャ👀",
+    "焦らず、自分のペースでいいニャ🐈",
+    "ここでひと踏ん張りニャ、応援してるニャ！",
+    "空いた時間は自由に使っていいニャ〜"
+];
+function pickNekosukeTip(seedKey) {
+    let hash = 0;
+    for (let i = 0; i < seedKey.length; i++) {
+        hash = (hash * 31 + seedKey.charCodeAt(i)) >>> 0;
+    }
+    return NEKOSUKE_TIPS[hash % NEKOSUKE_TIPS.length];
+}
+// タイトルから絵文字・記号を除いた自然な呼び名を作る
+function cleanTitle(t) {
+    return (t || '').replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u2190-\u21FF\u2B00-\u2BFF\uFE0F]+/gu, '').trim();
+}
+// 固定パターンの条件分岐だけでネコ助の「らしさ」を出す(AI呼び出し不要)
+function buildGapTip(diffMin, nextEv, curEvDone) {
+    if (curEvDone || !nextEv) return null;
+    const nextTitle = cleanTitle(nextEv.title) || nextEv.title;
+
+    if (nextEv.title.includes('就寝') && diffMin <= 90) {
+        return { face: '😾', text: `もうすぐ${nextEv.time}、はよ寝る準備をするニャ⏰` };
+    }
+    if (diffMin >= 120) {
+        return { face: '🐱', text: `自由時間ニャ、次は${nextEv.time}の${nextTitle}までのんびりしていいニャ🐾` };
+    }
+    if (diffMin >= 45) {
+        return { face: '🐱', text: pickNekosukeTip(new Date().toDateString() + nextEv.time) };
+    }
+    if (diffMin >= 20) {
+        return { face: '🙀', text: `そろそろ${nextTitle}の準備をぼちぼちするニャ` };
+    }
+    return null;
+}
+// ヘッダー常駐フェイス: 時間帯や就寝タスクの近さで表情が変わる
+function getNekosukeFace(now, events) {
+    const nowMin = now.getHours() * 60 + now.getMinutes();
+    const bedtime = events.find(e => e.title.includes('就寝'));
+    if (bedtime && !bedtime.done) {
+        const bedMin = timeToMinutes(bedtime.time);
+        if (nowMin >= bedMin - 15 && nowMin < bedMin + 30) return '😾';
+    }
+    const h = now.getHours();
+    if (h < 6) return '😴';
+    if (h < 10) return '😪';
+    if (h < 17) return '🐱';
+    if (h < 22) return '😋';
+    return '😼';
+}
+function updateNekosukeFace() {
+    const el = document.getElementById('nekosuke-face');
+    if (el) el.textContent = getNekosukeFace(new Date(), currentEvents);
+}
+
 /* ============ 予定表タブ：タイムライン描画 ============ */
 function timeToMinutes(t) {
     const parts = (t || "00:00").split(':').map(Number);
@@ -444,7 +580,7 @@ function nowMinutes() {
 }
 function nowLabel() {
     const n = new Date();
-    return `${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')} イマ`;
+    return `いま ${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`;
 }
 
 function buildNowIndicatorHtml() {
@@ -482,13 +618,46 @@ function buildRowHtml(ev, idx) {
         </div>`;
 }
 
-function buildGapHtml(diffMin, isDoneGap) {
-    const px = calcGapPx(diffMin);
+function buildNekosukeRowHtml(tip) {
     return `
-        <div class="gap-connector ${isDoneGap ? 'is-done-gap' : ''}">
+        <div class="timeline-row nekosuke-row">
+            <div class="node-col">
+                <div class="nekosuke-gap-avatar">${tip.face}</div>
+                <div class="connector-line"></div>
+            </div>
+            <div class="nekosuke-gap-bubble">${tip.text}</div>
+        </div>`;
+}
+function buildPlainStubHtml(px, isDone) {
+    return `
+        <div class="gap-connector ${isDone ? 'is-done-gap' : ''}">
             <div class="stub-col"><div class="stub-line" style="height:${px}px;"></div></div>
             <div style="flex-grow:1;"></div>
         </div>`;
+}
+// 2つのタスクの間(ギャップ)を描画する。「いま」インジケーターとネコ助のひと言は
+// 同じギャップ内に共存できる(実機の見た目イメージに準拠)
+function buildGapSegmentHtml(curEv, nextEv, nowMin) {
+    const curMin = timeToMinutes(curEv.time);
+    const nextMin = timeToMinutes(nextEv.time);
+    const diffMin = nextMin - curMin;
+    const totalPx = calcGapPx(diffMin);
+
+    const parts = [];
+    if (nowMin >= curMin && nowMin < nextMin) {
+        parts.push(buildNowIndicatorHtml());
+    }
+    const tip = buildGapTip(diffMin, nextEv, curEv.done);
+    if (tip) parts.push(buildNekosukeRowHtml(tip));
+
+    if (parts.length === 0) {
+        return buildPlainStubHtml(totalPx, curEv.done);
+    }
+
+    const edgePx = Math.max(10, Math.min(28, totalPx / (parts.length + 1)));
+    let html = buildPlainStubHtml(edgePx, curEv.done);
+    parts.forEach(p => { html += p; html += buildPlainStubHtml(edgePx, curEv.done); });
+    return html;
 }
 
 function renderTimeline() {
@@ -507,7 +676,6 @@ function renderTimeline() {
 
     const nowMin = nowMinutes();
     let html = '';
-    let indicatorInserted = false;
 
     if (currentEvents.length === 0) {
         container.innerHTML = '<div class="meal-plan-empty">予定がまだありません。チャットタブでネコ助に相談してみるニャ🐾</div>';
@@ -516,25 +684,15 @@ function renderTimeline() {
 
     if (nowMin < timeToMinutes(currentEvents[0].time)) {
         html += buildNowIndicatorHtml();
-        indicatorInserted = true;
     }
 
     currentEvents.forEach((ev, idx) => {
         html += buildRowHtml(ev, idx);
         const isLast = idx === currentEvents.length - 1;
         if (!isLast) {
-            const nextEv = currentEvents[idx + 1];
-            const curMin = timeToMinutes(ev.time);
-            const nextMin = timeToMinutes(nextEv.time);
-            if (!indicatorInserted && nowMin >= curMin && nowMin < nextMin) {
-                html += buildNowIndicatorHtml();
-                indicatorInserted = true;
-            } else {
-                html += buildGapHtml(nextMin - curMin, ev.done);
-            }
-        } else if (!indicatorInserted && nowMin >= timeToMinutes(ev.time)) {
+            html += buildGapSegmentHtml(ev, currentEvents[idx + 1], nowMin);
+        } else if (nowMin >= timeToMinutes(ev.time)) {
             html += buildNowIndicatorHtml();
-            indicatorInserted = true;
         }
     });
 
@@ -569,6 +727,7 @@ function startTimePatrol() {
             const shouldRing = currentEvents.some(ev => ev.chime && !ev.done && ev.time === currentStr);
             if (shouldRing) playChimeSound();
             renderTimeline(); // 現在時刻インジケーターの位置を更新
+            updateNekosukeFace();
         }
     }, 1000);
 }
@@ -584,7 +743,31 @@ function updateTime(idx, newTime) { currentEvents[idx].time = formatTimeInput(ne
 function updateTitle(idx, newTitle) { currentEvents[idx].title = newTitle; saveToLocalStorage(); }
 function updateDetail(idx, newDetail) { currentEvents[idx].detail = newDetail; saveToLocalStorage(); }
 function deleteItem(idx) { currentEvents.splice(idx, 1); renderTimeline(); saveToLocalStorage(); }
-function toggleItem(idx) { currentEvents[idx].done = !currentEvents[idx].done; renderTimeline(); saveToLocalStorage(); }
+function toggleItem(idx) {
+    const ev = currentEvents[idx];
+    const wasDone = ev.done;
+    ev.done = !wasDone;
+    renderTimeline();
+    saveToLocalStorage();
+    if (!wasDone && ev.done) showPraisePop(ev);
+}
+
+// タスク完了時に「えらいニャ🐾」がポップして消えるマイクロインタラクション
+function showPraisePop(ev) {
+    const container = document.getElementById('timeline');
+    if (!container) return;
+    const newIdx = currentEvents.indexOf(ev);
+    if (newIdx === -1) return;
+    const itemRows = container.querySelectorAll('.timeline-row:not(.nekosuke-row)');
+    const targetRow = itemRows[newIdx];
+    const card = targetRow && targetRow.querySelector('.timeline-item');
+    if (!card) return;
+    const badge = document.createElement('div');
+    badge.className = 'praise-pop';
+    badge.textContent = 'えらいニャ🐾';
+    card.appendChild(badge);
+    setTimeout(() => badge.remove(), 1300);
+}
 function toggleChime(idx) { currentEvents[idx].chime = !currentEvents[idx].chime; playChimeSound(); renderTimeline(); saveToLocalStorage(); }
 
 function applyProposedSchedule(buttonEl, jsonStr) {
@@ -813,27 +996,40 @@ function openDiaryModal() {
     document.getElementById('diary-overlay').classList.add('active');
     document.getElementById('diary-body').innerHTML = `
         <p style="font-size:13px;color:var(--text-sub);line-height:1.6;margin-top:0;">
-            完了した予定と今日の献立から、ネコ助が短い日記を書くニャ。NotebookLMなどへの貼り付けにどうぞ。
+            チャットで追加・変更した予定と今日の献立から、その日の記録を短くまとめます（毎日固定のルーティンは含みません）。NotebookLMなどへの貼り付けにどうぞ。
         </p>
-        <button class="diary-gen-btn" onclick="generateDiary()">✍️ 日記を生成する</button>
+        <button class="diary-gen-btn" onclick="generateDiary()">✍️ 記録を生成する</button>
     `;
 }
 function closeDiaryModal() {
     document.getElementById('diary-overlay').classList.remove('active');
 }
 
+function buildDiaryDateHeader() {
+    const d = new Date();
+    const weekDayStr = ["日", "月", "火", "水", "木", "金", "土"][d.getDay()];
+    return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日（${weekDayStr}）`;
+}
+
 async function generateDiary() {
     if (!API_KEY) { alert("APIキーが設定されていません。"); return; }
-    document.getElementById('diary-body').innerHTML = `<div class="diary-loading">🐱 ネコ助が今日を振り返っているニャ...</div>`;
+    document.getElementById('diary-body').innerHTML = `<div class="diary-loading">今日の記録を整理しています...</div>`;
 
-    const doneTasks = currentEvents.filter(e => e.done).map(e => e.title);
+    // 毎日固定のルーティン(type: routine)は対象外。チャットで追加・変更された予定のみを扱う。
+    const chatAddedEvents = currentEvents.filter(e => e.type !== 'routine');
+    const doneList = chatAddedEvents.filter(e => e.done).map(e => e.title);
+    const notDoneList = chatAddedEvents.filter(e => !e.done).map(e => e.title);
     const todayMenu = (mealPlan && mealPlan.dish) ? mealPlan.dish : '';
 
     const prompt = `
-    あなたはユーザーの一日の記録係「ネコ助」です。語尾に「〜ニャ」を軽く交える程度にして、読みやすい日記文にしてください。
-    以下の情報から、今日の出来事を振り返る短い日記（150〜250字程度、地の文中心）を書いてください。JSONやマークダウンは使わず、日記本文のみを出力してください。
-    【今日完了したこと】: ${doneTasks.length > 0 ? doneTasks.join('、') : '（特に記録なし）'}
-    【今日の夕食メニュー】: ${todayMenu || '（未定）'}
+    以下の情報をもとに、その日にあった出来事を淡々と短く記録する文章を書いてください。
+    ・特定の人物やキャラクターの一人称・語尾などの口調は使わず、客観的な記録文体にしてください（「〜だった」「〜した」等の淡々とした地の文）。
+    ・150〜220字程度。見出しや箇条書き、絵文字、マークダウンは使わないでください。本文のみを出力してください。
+    ・毎日固定のルーティン作業は記録対象外です。以下に挙げた項目のみを扱ってください。
+    ・すべての項目が「(なし)」の場合は、「この日は特に記録すべき追加の予定はなかった。」という趣旨の一文のみを書いてください。
+    【今日、追加・変更されて完了した予定】: ${doneList.length > 0 ? doneList.join('、') : '(なし)'}
+    【今日、追加されたが未完了の予定】: ${notDoneList.length > 0 ? notDoneList.join('、') : '(なし)'}
+    【今日の夕食メニュー】: ${todayMenu || '(なし)'}
     `;
 
     try {
@@ -843,17 +1039,19 @@ async function generateDiary() {
             body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
         });
         const data = await response.json();
-        const diaryText = data.candidates[0].content.parts[0].text.trim();
-        renderDiaryResult(diaryText);
+        const bodyText = data.candidates[0].content.parts[0].text.trim();
+        const fullText = `${buildDiaryDateHeader()}\n\n${bodyText}`;
+        renderDiaryResult(fullText);
     } catch (error) {
-        document.getElementById('diary-body').innerHTML = `<div class="diary-loading">エラーが発生しちゃったニャ……もう一度試してニャ。</div>`;
+        document.getElementById('diary-body').innerHTML = `<div class="diary-loading">エラーが発生しました。もう一度試してください。</div>`;
         console.error(error);
     }
 }
 
 function renderDiaryResult(diaryText) {
     document.getElementById('diary-body').innerHTML = `
-        <textarea id="diary-textarea" class="diary-textarea" readonly>${diaryText}</textarea>
+        <textarea id="diary-textarea" class="diary-textarea">${diaryText}</textarea>
+        <p style="font-size:11px;color:var(--text-sub);margin:6px 2px 0 2px;">↑ コピー・保存の前に自由に編集できます</p>
         <div class="diary-actions">
             <button class="diary-action-btn diary-copy-btn" onclick="copyDiaryText()">📋 コピー</button>
             <button class="diary-action-btn diary-save-btn" onclick="downloadDiaryText()">💾 テキストで保存</button>
@@ -864,11 +1062,11 @@ function renderDiaryResult(diaryText) {
 function copyDiaryText() {
     const ta = document.getElementById('diary-textarea');
     navigator.clipboard.writeText(ta.value).then(() => {
-        alert('コピーしたニャ📋');
+        alert('コピーしました');
     }).catch(() => {
         ta.select();
         document.execCommand('copy');
-        alert('コピーしたニャ📋');
+        alert('コピーしました');
     });
 }
 
@@ -890,6 +1088,7 @@ initApp();
 updateDateDisplay();
 renderTimeline();
 renderMealChatRoom();
+updateNekosukeFace();
 startTimePatrol();
 
 </script>
