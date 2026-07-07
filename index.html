@@ -1,459 +1,897 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Daily Planner AI</title>
-    <link rel="apple-touch-icon" href="https://img.icons8.com/fluent/180/000000/sparkling-particles.png">
-    <style>
-        :root {
-            --bg-color: #f5f4fa;
-            --card-bg: #ffffff;
-            --text-main: #2c3e50;
-            --text-sub: #7f8c8d;
-            --accent: #6c5ce7;
-            --routine: #b5e2b9;
-            --cooking: #fbc531;
-            --task: #dcdde1;
-            --calendar: #ff7675;
-            --border-color: #e8e7f5;
-            --line-bg: #abc0d4; 
-            --line-green: #85e24a;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Daily Planner AI</title>
+<link rel="apple-touch-icon" href="https://img.icons8.com/fluent/180/000000/sparkling-particles.png">
+<style>
+:root {
+    --bg-color: #f5f4fa;
+    --card-bg: #ffffff;
+    --text-main: #2c3e50;
+    --text-sub: #7f8c8d;
+    --accent: #6c5ce7;
+    --routine: #b5e2b9;
+    --cooking: #fbc531;
+    --task: #dcdde1;
+    --calendar: #ff7675;
+    --border-color: #e8e7f5;
+    --line-bg: #c7cfe8;
+    --line-done: #cbd5e0;
+    --line-green: #85e24a;
+}
 
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-main);
-            margin: 0;
-            padding: 24px 16px 300px 16px; 
-            max-width: 480px;
-            margin: 0 auto;
-        }
+html, body { height: 100%; }
 
-        .app-header { text-align: center; margin-bottom: 24px; padding-top: env(safe-area-inset-top); }
-        .app-header h1 { font-size: 26px; font-weight: 700; color: var(--accent); margin: 0 0 6px 0; letter-spacing: 0.5px; }
-        .app-header .date-str { font-size: 15px; font-weight: 600; color: #8e8cb2; margin: 0; }
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-main);
+    margin: 0;
+    max-width: 480px;
+    margin: 0 auto;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
 
-        .timeline { position: relative; }
+/* ===== ヘッダー ===== */
+.app-header {
+    flex-shrink: 0;
+    text-align: center;
+    padding: calc(env(safe-area-inset-top) + 16px) 16px 12px 16px;
+    position: relative;
+    background: var(--bg-color);
+    border-bottom: 1px solid var(--border-color);
+}
+.app-header h1 { font-size: 22px; font-weight: 700; color: var(--accent); margin: 0 0 4px 0; letter-spacing: 0.5px; }
+.app-header .date-str { font-size: 14px; font-weight: 600; color: #8e8cb2; margin: 0; }
+.diary-btn {
+    position: absolute; top: calc(env(safe-area-inset-top) + 14px); right: 14px;
+    background: #ffffff; border: 1px solid var(--border-color); width: 40px; height: 40px;
+    border-radius: 50%; font-size: 18px; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; box-shadow: 0 3px 8px rgba(108,92,231,0.12);
+}
 
-        .timeline-item {
-            position: relative; background: var(--card-bg); border-radius: 20px;
-            padding: 16px 14px; margin-bottom: 14px;
-            box-shadow: 0 6px 14px rgba(108,92,231,0.03);
-            border: 1px solid var(--border-color);
-            border-left: 6px solid var(--accent);
-            display: flex; align-items: flex-start; gap: 14px;
-        }
+/* ===== タブコンテンツエリア ===== */
+.tab-content-area { flex: 1; min-height: 0; position: relative; }
+.tab-panel {
+    position: absolute; inset: 0; display: none; flex-direction: column; overflow: hidden;
+}
+.tab-panel.active { display: flex; }
+.scroll-area { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 
-        .timeline-item.routine { border-left-color: var(--routine); }
-        .timeline-item.cooking { border-left-color: var(--cooking); }
-        .timeline-item.calendar { border-left-color: var(--calendar); }
-        .timeline-item.task { border-left-color: var(--task); }
+/* ===== タブバー ===== */
+.tab-bar {
+    flex-shrink: 0; display: flex; background: #ffffff; border-top: 1px solid var(--border-color);
+    padding-bottom: env(safe-area-inset-bottom);
+}
+.tab-bar-btn {
+    flex: 1; background: none; border: none; padding: 10px 4px 8px 4px; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    color: var(--text-sub); font-size: 11px; font-weight: 600;
+}
+.tab-bar-btn .icon { font-size: 21px; opacity: 0.55; }
+.tab-bar-btn.active { color: var(--accent); }
+.tab-bar-btn.active .icon { opacity: 1; }
 
-        .checkbox-container { position: relative; cursor: pointer; width: 24px; height: 24px; flex-shrink: 0; margin-top: 2px; }
-        .checkbox-container input { position: absolute; opacity: 0; }
-        .checkmark { position: absolute; top: 0; left: 0; height: 24px; width: 24px; background-color: #ffffff; border: 2px solid #cbd5e0; border-radius: 50%; transition: all 0.2s; }
-        .checkbox-container input:checked ~ .checkmark { background-color: var(--accent); border-color: var(--accent); }
-        .checkmark::after { content: ""; position: absolute; display: none; left: 8px; top: 4px; width: 5px; height: 9px; border: solid white; border-width: 0 2px 2px 0; transform: rotate(45deg); }
-        .checkbox-container input:checked ~ .checkmark::after { display: block; }
+/* ===== 予定表タブ：タイムライン ===== */
+.timeline-wrap { padding: 18px 16px 24px 16px; }
 
-        .item-center { flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; padding-right: 12px; }
-        
-        .time-row-wrapper { display: flex; align-items: center; gap: 8px; }
-        .time-input {
-            font-size: 13px; font-weight: 700; color: #6c5ce7; border: none;
-            background: #f0edff; width: 55px; padding: 3px 4px; border-radius: 6px; text-align: center;
-            outline: none;
-        }
+.timeline-row { display: flex; align-items: stretch; }
+.node-col { width: 24px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; margin-right: 14px; }
+.node-col .connector-line { width: 2px; flex-grow: 1; background: var(--line-bg); margin-top: 2px; border-radius: 1px; }
+.node-col.is-done-node .connector-line { background: var(--line-done); }
 
-        .chime-toggle-btn {
-            background: none; border: none; font-size: 15px; cursor: pointer; padding: 2px;
-            opacity: 0.3; transition: opacity 0.2s, transform 0.1s;
-        }
-        .chime-toggle-btn.active { opacity: 1; transform: scale(1.1); }
+.gap-connector { display: flex; align-items: stretch; }
+.gap-connector .stub-col { width: 24px; flex-shrink: 0; display: flex; justify-content: center; margin-right: 14px; }
+.gap-connector .stub-line { width: 2px; background: var(--line-bg); border-radius: 1px; }
+.gap-connector.is-done-gap .stub-line { background: var(--line-done); }
 
-        .title-input { font-size: 16px; font-weight: 700; border: none; background: transparent; width: 100%; color: #2d3748; outline: none; white-space: pre-wrap; word-break: break-all; }
-        .detail-input { font-size: 13px; font-weight: 400; border: none; background: transparent; width: 100%; color: #718096; outline: none; white-space: pre-wrap; word-break: break-all; }
-        .title-input:focus, .detail-input:focus, .time-input:focus { background: #fff9db; border-radius: 4px; }
+.now-indicator { display: flex; align-items: center; gap: 8px; padding: 6px 0; margin: 2px 0; }
+.now-indicator .stub-col { width: 24px; flex-shrink: 0; display: flex; justify-content: center; margin-right: 14px; }
+.now-indicator .now-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px rgba(108,92,231,0.18); }
+.now-indicator .now-line { flex-grow: 1; height: 2px; background: repeating-linear-gradient(90deg, var(--accent) 0 6px, transparent 6px 10px); }
+.now-indicator .now-label { font-size: 11px; font-weight: 700; color: var(--accent); background: #efeaff; padding: 3px 8px; border-radius: 10px; white-space: nowrap; }
 
-        .delete-btn { position: absolute; top: 12px; right: 12px; background: none; border: none; color: #e53e3e; font-size: 14px; font-weight: bold; cursor: pointer; padding: 4px; opacity: 0.3; }
-        .delete-btn:hover { opacity: 0.8; }
+.timeline-item {
+    position: relative; background: var(--card-bg); border-radius: 20px;
+    padding: 16px 14px; margin-bottom: 0;
+    box-shadow: 0 6px 14px rgba(108,92,231,0.03);
+    border: 1px solid var(--border-color);
+    border-left: 6px solid var(--accent);
+    display: flex; align-items: flex-start; gap: 12px;
+    flex-grow: 1; min-width: 0;
+}
+.timeline-item.routine { border-left-color: var(--routine); }
+.timeline-item.cooking { border-left-color: var(--cooking); }
+.timeline-item.calendar { border-left-color: var(--calendar); }
+.timeline-item.task { border-left-color: var(--task); }
 
-        .timeline-item.is-done { opacity: 0.4; }
-        .timeline-item.is-done .title-input, .timeline-item.is-done .detail-input { text-decoration: line-through; }
+.checkbox-container { position: relative; cursor: pointer; width: 24px; height: 24px; flex-shrink: 0; margin-top: 2px; }
+.checkbox-container input { position: absolute; opacity: 0; }
+.checkmark { position: absolute; top: 0; left: 0; height: 24px; width: 24px; background-color: #ffffff; border: 2px solid #cbd5e0; border-radius: 50%; transition: all 0.2s; }
+.checkbox-container input:checked ~ .checkmark { background-color: var(--line-done); border-color: var(--line-done); }
+.checkmark::after { content: ""; position: absolute; display: none; left: 8px; top: 4px; width: 5px; height: 9px; border: solid white; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+.checkbox-container input:checked ~ .checkmark::after { display: block; }
 
-        /* 📱 可変式モーダルチャットシート */
-        .chat-section {
-            position: fixed; bottom: 0; left: 0; right: 0;
-            background: #ffffff;
-            border-top-left-radius: 24px; border-top-right-radius: 24px;
-            border-top: 1px solid var(--border-color); z-index: 1000;
-            box-shadow: 0 -10px 30px rgba(0,0,0,0.08);
-            display: flex; flex-direction: column;
-            height: 270px; 
-            max-height: calc(100vh - env(safe-area-inset-top) - 20px);
-            min-height: 110px;
-            transition: height 0.1s ease-out; 
-        }
-        
-        .chat-container-inner { max-width: 480px; margin: 0 auto; display: flex; flex-direction: column; width: 100%; height: 100%; }
+.item-center { flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; padding-right: 12px; }
+.time-row-wrapper { display: flex; align-items: center; gap: 8px; }
+.time-input {
+    font-size: 13px; font-weight: 700; color: #6c5ce7; border: none;
+    background: #f0edff; width: 55px; padding: 3px 4px; border-radius: 6px; text-align: center;
+    outline: none;
+}
+.chime-toggle-btn { background: none; border: none; font-size: 15px; cursor: pointer; padding: 2px; opacity: 0.3; transition: opacity 0.2s, transform 0.1s; }
+.chime-toggle-btn.active { opacity: 1; transform: scale(1.1); }
 
-        .chat-drag-handle {
-            width: 100%; height: 26px; background: #ffffff; border-top-left-radius: 24px; border-top-right-radius: 24px;
-            display: flex; align-items: center; justify-content: center; cursor: ns-resize; touch-action: none;
-        }
-        .chat-drag-handle::after { content: ""; width: 40px; height: 5px; background: #cbd5e0; border-radius: 3px; }
+.title-input { font-size: 16px; font-weight: 700; border: none; background: transparent; width: 100%; color: #2d3748; outline: none; white-space: pre-wrap; word-break: break-all; }
+.detail-input { font-size: 13px; font-weight: 400; border: none; background: transparent; width: 100%; color: #718096; outline: none; white-space: pre-wrap; word-break: break-all; }
+.title-input:focus, .detail-input:focus, .time-input:focus { background: #fff9db; border-radius: 4px; }
 
-        .status-indicator { text-align: center; font-size: 11px; color: #6c5ce7; font-weight: bold; padding: 4px 0; background: #eef0f6; border-bottom: 1px solid #e2e1f0; }
+.delete-btn { position: absolute; top: 12px; right: 12px; background: none; border: none; color: #e53e3e; font-size: 14px; font-weight: bold; cursor: pointer; padding: 4px; opacity: 0.3; }
+.delete-btn:hover { opacity: 0.8; }
 
-        .chat-talk-room {
-            background-color: var(--line-bg);
-            flex-grow: 1; 
-            overflow-y: auto;
-            padding: 14px;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
+.timeline-item.is-done { opacity: 0.45; }
+.timeline-item.is-done .title-input, .timeline-item.is-done .detail-input { text-decoration: line-through; }
 
-        .chat-bubble-row { display: flex; width: 100%; align-items: flex-start; gap: 8px; }
-        .chat-bubble-row.user-side { justify-content: flex-end; } 
+/* ===== チャット共通(予定/献立) ===== */
+.chat-panel-inner { display: flex; flex-direction: column; height: 100%; }
+.status-indicator { text-align: center; font-size: 11px; color: #6c5ce7; font-weight: bold; padding: 5px 0; background: #eef0f6; border-bottom: 1px solid #e2e1f0; flex-shrink: 0; }
+.chat-talk-room {
+    background-color: var(--line-bg);
+    flex-grow: 1; overflow-y: auto; padding: 14px;
+    display: flex; flex-direction: column; gap: 12px;
+}
+.chat-bubble-row { display: flex; width: 100%; align-items: flex-start; gap: 8px; }
+.chat-bubble-row.user-side { justify-content: flex-end; }
+.chat-avatar { width: 34px; height: 34px; background: #ffffff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+.chat-msg-body { display: flex; flex-direction: column; max-width: 74%; min-width: 0; }
+.chat-sender-name { font-weight: 700; font-size: 11px; color: #556677; margin-bottom: 3px; padding-left: 2px; }
+.bubble {
+    background: #ffffff; color: #2c3e50; font-size: 14px; line-height: 1.45;
+    padding: 8px 12px; border-radius: 16px; border-top-left-radius: 4px;
+    word-break: break-all; white-space: pre-wrap; box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    position: relative;
+}
+.user-side .bubble { background: var(--line-green); color: #000000; border-radius: 16px; border-top-right-radius: 4px; border-top-left-radius: 16px; }
+.apply-wrapper { margin-top: 6px; display: flex; justify-content: flex-start; }
+.apply-btn {
+    background: #2ecc71; color: white; border: none; padding: 5px 12px;
+    border-radius: 14px; font-size: 11px; font-weight: bold; cursor: pointer;
+    box-shadow: 0 2px 6px rgba(46, 204, 113, 0.2); display: flex; align-items: center; gap: 4px;
+}
+.apply-btn:disabled { background: #95a5a6; }
+.plan-note {
+    margin-top: 6px; font-size: 11px; font-weight: bold; color: #e67e22;
+    background: #fff6e6; padding: 5px 10px; border-radius: 12px; display: inline-block;
+}
+.input-bar-wrapper { flex-shrink: 0; padding: 8px 12px calc(8px + env(safe-area-inset-bottom)) 12px; background: #ffffff; display: flex; gap: 8px; align-items: flex-end; border-top: 1px solid #f0edf7; }
+.chat-input {
+    flex-grow: 1; border: 1px solid #e2e1f0; background: #f8f9fa; font-size: 15px; outline: none;
+    color: var(--text-main); resize: none; max-height: 90px; padding: 8px 12px;
+    font-family: inherit; line-height: 1.4; border-radius: 18px;
+}
+.chat-input:focus { background: #ffffff; border-color: var(--accent); }
+.send-btn { background: #6c5ce7; color: white; border: none; width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; }
+.send-btn svg { width: 16px; height: 16px; fill: white; }
+.key-reset { font-size: 10px; color: var(--text-sub); background: #ffffff; border: none; text-decoration: underline; text-align: center; display: block; padding: 4px 0 8px 0; cursor: pointer; flex-shrink: 0; }
 
-        .chat-avatar { width: 34px; height: 34px; background: #ffffff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        .chat-msg-body { display: flex; flex-direction: column; max-width: 70%; min-width: 0; }
-        .chat-sender-name { font-weight: 700; font-size: 11px; color: #556677; margin-bottom: 3px; padding-left: 2px; }
+/* ===== 献立＆調理タブ ===== */
+.meal-panel-inner { display: flex; flex-direction: column; height: 100%; }
+.segment-control { flex-shrink: 0; display: flex; gap: 6px; padding: 10px 14px; background: #ffffff; border-bottom: 1px solid var(--border-color); }
+.segment-btn {
+    flex: 1; padding: 9px 4px; border-radius: 12px; border: 1px solid var(--border-color);
+    background: #f5f4fa; color: var(--text-sub); font-size: 13px; font-weight: 700; cursor: pointer;
+}
+.segment-btn.active { background: var(--accent); color: #ffffff; border-color: var(--accent); }
+.meal-view { display: none; flex-direction: column; flex: 1; min-height: 0; }
+.meal-view.active { display: flex; }
+.meal-plan-empty { padding: 40px 24px; text-align: center; color: var(--text-sub); font-size: 14px; line-height: 1.7; }
+.meal-plan-header { padding: 16px 16px 4px 16px; }
+.meal-plan-header h2 { font-size: 18px; margin: 0; color: var(--text-main); }
+.meal-plan-header .dish-label { font-size: 12px; color: var(--text-sub); font-weight: 600; }
 
-        .bubble {
-            background: #ffffff; color: #2c3e50; font-size: 14px; line-height: 1.45;
-            padding: 8px 12px; border-radius: 16px; border-top-left-radius: 4px; 
-            word-break: break-all; white-space: pre-wrap; box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-            position: relative;
-        }
-
-        .user-side .bubble { background: var(--line-green); color: #000000; border-radius: 16px; border-top-right-radius: 4px; border-top-left-radius: 16px; }
-
-        .apply-wrapper { margin-top: 6px; display: flex; justify-content: flex-start; }
-        .apply-btn {
-            background: #2ecc71; color: white; border: none; padding: 5px 12px;
-            border-radius: 14px; font-size: 11px; font-weight: bold; cursor: pointer;
-            box-shadow: 0 2px 6px rgba(46, 204, 113, 0.2); display: flex; align-items: center; gap: 4px;
-        }
-
-        .input-bar-wrapper { padding: 8px 12px calc(8px + env(safe-area-inset-bottom)) 12px; background: #ffffff; display: flex; gap: 8px; align-items: flex-end; border-top: 1px solid #f0edf7; }
-        .chat-input {
-            flex-grow: 1; border: 1px solid #e2e1f0; background: #f8f9fa; font-size: 15px; outline: none;
-            color: var(--text-main); resize: none; max-height: 70px; padding: 6px 12px;
-            font-family: inherit; line-height: 1.4; border-radius: 18px;
-        }
-        .chat-input:focus { background: #ffffff; border-color: var(--accent); }
-        .send-btn { background: #6c5ce7; color: white; border: none; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; }
-        .send-btn svg { width: 16px; height: 16px; fill: white; }
-        
-        .key-reset { font-size: 10px; color: var(--text-sub); background: none; border: none; text-decoration: underline; text-align: center; display: block; margin-bottom: 6px; cursor: pointer; }
-    </style>
+/* ===== 日記モーダル ===== */
+.diary-overlay {
+    position: fixed; inset: 0; background: rgba(30,25,50,0.45); z-index: 2000;
+    display: none; align-items: flex-end; justify-content: center;
+}
+.diary-overlay.active { display: flex; }
+.diary-card {
+    background: #ffffff; width: 100%; max-width: 480px; border-top-left-radius: 22px; border-top-right-radius: 22px;
+    padding: 18px 18px calc(18px + env(safe-area-inset-bottom)) 18px; max-height: 82vh; overflow-y: auto;
+    box-shadow: 0 -10px 30px rgba(0,0,0,0.15);
+}
+.diary-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.diary-card-header h3 { margin: 0; font-size: 17px; color: var(--accent); }
+.diary-close-btn { background: none; border: none; font-size: 20px; color: var(--text-sub); cursor: pointer; padding: 4px; }
+.diary-textarea {
+    width: 100%; min-height: 140px; border: 1px solid var(--border-color); border-radius: 14px;
+    padding: 12px; font-size: 15px; line-height: 1.6; color: var(--text-main); background: #faf9ff;
+    font-family: inherit; resize: vertical; outline: none;
+}
+.diary-actions { display: flex; gap: 8px; margin-top: 12px; }
+.diary-action-btn {
+    flex: 1; padding: 11px 8px; border-radius: 14px; border: none; font-size: 14px; font-weight: 700; cursor: pointer;
+}
+.diary-copy-btn { background: #eef0f6; color: var(--text-main); }
+.diary-save-btn { background: var(--accent); color: #ffffff; }
+.diary-loading { text-align: center; padding: 30px 10px; color: var(--text-sub); font-size: 14px; }
+.diary-gen-btn {
+    width: 100%; padding: 12px; border-radius: 14px; border: none; background: var(--accent);
+    color: #fff; font-size: 15px; font-weight: 700; cursor: pointer;
+}
+</style>
 </head>
 <body>
 
 <div class="app-header">
     <h1>Daily Planner AI ✨</h1>
     <div id="current-date" class="date-str">Loading...</div>
+    <button class="diary-btn" onclick="openDiaryModal()" title="日記を書き出す">📔</button>
 </div>
 
-<div id="timeline" class="timeline"></div>
+<div class="tab-content-area">
 
-<div id="movable-chat" class="chat-section">
-    <div class="chat-drag-handle" id="drag-handle"></div>
-    <div class="chat-container-inner">
-        <div id="status" class="status-indicator" style="display:none;">🎀 ネコ助が作戦を組み立て中ニャ...</div>
-        <div id="chat-talk-room" class="chat-talk-room">
-            <div class="chat-bubble-row">
-                <div class="chat-avatar">🐱</div>
-                <div class="chat-msg-body">
-                    <div class="chat-sender-name">ネコ助</div>
-                    <div class="bubble">Mihoさん、今日もお疲れ様ニャ！1日の段取りを一緒に育てるニャ🐾 予定の追加や変更、夕飯のメニューが決まったら、いつでもここに話しかけてニャ〜！</div>
+    <!-- 予定表タブ -->
+    <div id="tab-schedule" class="tab-panel active">
+        <div class="scroll-area">
+            <div id="timeline" class="timeline-wrap"></div>
+        </div>
+    </div>
+
+    <!-- チャットタブ(予定相談) -->
+    <div id="tab-chat" class="tab-panel">
+        <div class="chat-panel-inner">
+            <div id="status" class="status-indicator" style="display:none;">🎀 ネコ助が作戦を組み立て中ニャ...</div>
+            <div id="chat-talk-room" class="chat-talk-room">
+                <div class="chat-bubble-row">
+                    <div class="chat-avatar">🐱</div>
+                    <div class="chat-msg-body">
+                        <div class="chat-sender-name">ネコ助</div>
+                        <div class="bubble">Mihoさん、今日もお疲れ様ニャ！1日の段取りを一緒に育てるニャ🐾 予定の追加や変更があれば、いつでもここに話しかけてニャ〜！</div>
+                    </div>
+                </div>
+            </div>
+            <div class="input-bar-wrapper">
+                <textarea id="chat-input" class="chat-input" rows="1" placeholder="予定を入力ニャ..." oninput="autoGrow(this)"></textarea>
+                <button class="send-btn" onclick="handleSend()">
+                    <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+                </button>
+            </div>
+            <button class="key-reset" onclick="resetApiKey()">APIキー再設定</button>
+        </div>
+    </div>
+
+    <!-- 献立＆調理タブ -->
+    <div id="tab-meal" class="tab-panel">
+        <div class="meal-panel-inner">
+            <div class="segment-control">
+                <button id="seg-chat-btn" class="segment-btn active" onclick="switchMealView('chat')">💬 チャット</button>
+                <button id="seg-plan-btn" class="segment-btn" onclick="switchMealView('plan')">🍳 段取り</button>
+            </div>
+
+            <div id="meal-view-chat" class="meal-view active">
+                <div id="meal-status" class="status-indicator" style="display:none;">🎀 ネコ助が段取りを考え中ニャ...</div>
+                <div id="meal-chat-talk-room" class="chat-talk-room"></div>
+                <div class="input-bar-wrapper">
+                    <textarea id="meal-chat-input" class="chat-input" rows="1" placeholder="今日の夕飯の相談をどうぞニャ..." oninput="autoGrow(this)"></textarea>
+                    <button class="send-btn" onclick="handleMealSend()">
+                        <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+                    </button>
+                </div>
+            </div>
+
+            <div id="meal-view-plan" class="meal-view">
+                <div class="scroll-area">
+                    <div id="meal-plan-content"></div>
                 </div>
             </div>
         </div>
-        <div class="input-bar-wrapper">
-            <textarea id="chat-input" class="chat-input" rows="1" placeholder="予定、メニューを入力ニャ..." oninput="autoGrow(this)"></textarea>
-            <button class="send-btn" onclick="handleSend()">
-                <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
-            </button>
+    </div>
+
+</div>
+
+<div class="tab-bar">
+    <button class="tab-bar-btn active" data-tab="tab-schedule" onclick="showTab('tab-schedule', this)">
+        <span class="icon">📅</span><span>予定表</span>
+    </button>
+    <button class="tab-bar-btn" data-tab="tab-chat" onclick="showTab('tab-chat', this)">
+        <span class="icon">💬</span><span>チャット</span>
+    </button>
+    <button class="tab-bar-btn" data-tab="tab-meal" onclick="showTab('tab-meal', this)">
+        <span class="icon">🍳</span><span>献立＆調理</span>
+    </button>
+</div>
+
+<!-- 日記出力モーダル -->
+<div id="diary-overlay" class="diary-overlay">
+    <div class="diary-card">
+        <div class="diary-card-header">
+            <h3>📔 今日の日記</h3>
+            <button class="diary-close-btn" onclick="closeDiaryModal()">✕</button>
         </div>
-        <button class="key-reset" onclick="resetApiKey()">APIキー再設定</button>
+        <div id="diary-body"></div>
     </div>
 </div>
 
 <script>
-    let API_KEY = localStorage.getItem('GEMINI_API_KEY');
-    if (!API_KEY) {
-        API_KEY = prompt("GeminiのAPIキーを入力してください。");
-        if (API_KEY) localStorage.setItem('GEMINI_API_KEY', API_KEY);
+/* ==============================
+   Daily Planner AI - app.js
+   ============================== */
+
+let API_KEY = localStorage.getItem('GEMINI_API_KEY');
+if (!API_KEY) {
+    API_KEY = prompt("GeminiのAPIキーを入力してください。");
+    if (API_KEY) localStorage.setItem('GEMINI_API_KEY', API_KEY);
+}
+function resetApiKey() { localStorage.removeItem('GEMINI_API_KEY'); location.reload(); }
+
+const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent';
+
+/* 🌞 普遍的なマスター初期データ（時間軸破壊禁止） */
+const baseRoutines = [
+    { time: "07:00", title: "起床・お部屋リセット", detail: "カーテンを開ける/布団を整える/亀にエサ/猫にごはん/猫のトイレ掃除（実働20分・残り10分バッファ）", type: "routine", done: false, chime: false },
+    { time: "07:30", title: "お弁当作り 🍱", detail: "子供のお弁当準備（20分）※休憩なしでダイレクトに開始！", type: "routine", done: false, chime: false },
+    { time: "08:00", title: "朝食＆ゆったり休憩 ☕️", detail: "子供が出かけた後の朝ごはん。【最重要】食後にサプリを飲む。", type: "routine", done: false, chime: true },
+    { time: "09:05", title: "朝の集中家事＆身支度 🧹", detail: "食器洗い ➔ 洗濯機回す ➔ 掃除ロボ起動。その間に自身の洗面・身支度。", type: "routine", done: false, chime: false },
+    { time: "12:00", title: "ランチ休憩 🥗", detail: "調理・食事・片付けをゆったり含む（90分枠）", type: "routine", done: false, chime: false },
+    { time: "18:00", title: "夜の家事＆夕食の調理スタート 🐈", detail: "カーテンを閉める、猫にごはんをあげる、炊飯器のセット、夕食の調理を19:30までに終わらせる。", type: "routine", done: false, chime: false },
+    { time: "19:30", title: "夕食＆片付け 🍽️", detail: "家族での楽しい夕食タイムと、その後の食器洗い・シンク片付け。21:00までにのんびり完了させるニャ。", type: "routine", done: false, chime: false },
+    { time: "22:00", title: "入浴＆自由時間 🎵", detail: "お風呂にゆっくり浸かり、BTSの動画を見たり韓国語の勉強をするリラックスタイム。", type: "routine", done: false, chime: false },
+    { time: "23:50", title: "就寝 🌙", detail: "夜更かし厳禁・健康のための絶対死守ライン！", type: "routine", done: false, chime: true }
+];
+const MEAL_GREETING = { sender: 'nekosuke', text: '今日の夕飯、何にするニャ？食材や気分を教えてくれたら一緒に考えるニャ🐾' };
+
+let currentEvents = [];
+let mealMessages = [];
+let mealPlan = null;
+let mealTabView = 'chat';
+let lastCheckedMinute = "";
+
+/* ============ 初期化・日付またぎ判定 ============ */
+function initApp() {
+    const todayStr = new Date().toDateString();
+    const savedDate = localStorage.getItem('DAILY_PLANNER_LAST_DATE');
+    const isNewDay = (savedDate !== todayStr);
+
+    const savedEvents = localStorage.getItem('DAILY_PLANNER_EVENTS');
+    if (isNewDay || !savedEvents) {
+        currentEvents = JSON.parse(JSON.stringify(baseRoutines));
+    } else {
+        currentEvents = JSON.parse(savedEvents);
     }
 
-    function resetApiKey() { localStorage.removeItem('GEMINI_API_KEY'); location.reload(); }
-
-    // 🌞 普遍的なマスター初期データ
-    const baseRoutines = [
-        { time: "07:00", title: "起床・お部屋リセット", detail: "カーテンを開ける/布団を整える/亀にエサ/猫にごはん/猫のトイレ掃除（実働20分・残り10分バッファ）", type: "routine", done: false, chime: false },
-        { time: "07:30", title: "お弁当作り 🍱", detail: "子供のお弁当準備（20分）※休憩なしでダイレクトに開始！", type: "routine", done: false, chime: false },
-        { time: "08:00", title: "朝食＆ゆったり休憩 ☕️", detail: "子供が出かけた後の朝ごはん。【最重要】食後にサプリを飲む。", type: "routine", done: false, chime: true },
-        { time: "09:05", title: "朝の集中家事＆身支度 🧹", detail: "食器洗い ➔ 洗濯機回す ➔ 掃除ロボ起動。その間に自身の洗面・身支度。", type: "routine", done: false, chime: false },
-        { time: "12:00", title: "ランチ休憩 🥗", detail: "調理・食事・片付けをゆったり含む（90分枠）", type: "routine", done: false, chime: false },
-        { time: "18:00", title: "夜の家事＆夕食の調理スタート 🐈", detail: "カーテンを閉める、猫にごはんをあげる、炊飯器のセット、夕食の調理を19:30までに終わらせる。", type: "routine", done: false, chime: false },
-        { time: "19:30", title: "夕食＆片付け 🍽️", detail: "家族での楽しい夕食タイムと、その後の食器洗い・シンク片付け。21:00までにのんびり完了させるニャ。", type: "routine", done: false, chime: false },
-        { time: "22:00", title: "入浴＆自由時間 🎵", detail: "お風呂にゆっくり浸かり、BTSの動画を見たり韓国語の勉強をするリラックスタイム。", type: "routine", done: false, chime: false },
-        { time: "23:50", title: "就寝 🌙", detail: "夜更かし厳禁・健康のための絶対死守ライン！", type: "routine", done: false, chime: true }
-    ];
-
-    let currentEvents = [];
-    let lastCheckedMinute = "";
-
-    // 💾 【新設】データをiPhone本体へ全自動で永久保存する関数
-    function saveToLocalStorage() {
-        localStorage.setItem('DAILY_PLANNER_EVENTS', JSON.stringify(currentEvents));
-        const todayStr = new Date().toDateString();
-        localStorage.setItem('DAILY_PLANNER_LAST_DATE', todayStr); // 保存した日付もメモ
+    const savedMealChat = localStorage.getItem('DAILY_PLANNER_MEAL_CHAT');
+    if (isNewDay || !savedMealChat) {
+        mealMessages = [Object.assign({}, MEAL_GREETING)];
+    } else {
+        mealMessages = JSON.parse(savedMealChat);
     }
 
-    // 🔄 【新設】アプリ起動時にデータを賢く読み込む（日付またぎ対応）
-    function loadFromLocalStorage() {
-        const savedData = localStorage.getItem('DAILY_PLANNER_EVENTS');
-        const savedDate = localStorage.getItem('DAILY_PLANNER_LAST_DATE');
-        const todayStr = new Date().toDateString();
+    if (isNewDay) {
+        mealPlan = null;
+    } else {
+        const savedPlan = localStorage.getItem('DAILY_PLANNER_MEAL_PLAN');
+        mealPlan = savedPlan ? JSON.parse(savedPlan) : null;
+    }
 
-        // 💡 もし今日初めてアプリを開いた（日付が変わった）場合は、昨日のゴミを捨ててリセット！
-        if (!savedData || savedDate !== todayStr) {
-            currentEvents = [...baseRoutines];
-            saveToLocalStorage();
-        } else {
-            currentEvents = JSON.parse(savedData);
+    localStorage.setItem('DAILY_PLANNER_LAST_DATE', todayStr);
+    saveToLocalStorage();
+    saveMealChat();
+}
+
+function saveToLocalStorage() {
+    localStorage.setItem('DAILY_PLANNER_EVENTS', JSON.stringify(currentEvents));
+    localStorage.setItem('DAILY_PLANNER_LAST_DATE', new Date().toDateString());
+}
+function saveMealChat() {
+    localStorage.setItem('DAILY_PLANNER_MEAL_CHAT', JSON.stringify(mealMessages));
+}
+function saveMealPlan() {
+    if (mealPlan) localStorage.setItem('DAILY_PLANNER_MEAL_PLAN', JSON.stringify(mealPlan));
+    else localStorage.removeItem('DAILY_PLANNER_MEAL_PLAN');
+}
+
+function updateDateDisplay() {
+    const d = new Date();
+    const weekDayStr = ["日", "月", "火", "水", "木", "金", "土"][d.getDay()];
+    document.getElementById('current-date').innerText = `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日（${weekDayStr}曜日）`;
+}
+
+function autoGrow(element) {
+    element.style.height = "auto";
+    element.style.height = (element.scrollHeight - 10) + "px";
+}
+
+document.addEventListener("click", () => {
+    try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (AudioContext) {
+            const ctx = new AudioContext();
+            if (ctx.state === "suspended") ctx.resume();
         }
-    }
+    } catch (e) {}
+}, { once: true });
 
-    function updateDateDisplay() {
-        const d = new Date();
-        const weekDayStr = ["日", "月", "火", "水", "木", "金", "土"][d.getDay()];
-        document.getElementById('current-date').innerText = `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日（${weekDayStr}曜日）`;
-    }
+/* ============ タブ切り替え ============ */
+function showTab(tabId, btnEl) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById(tabId).classList.add('active');
+    document.querySelectorAll('.tab-bar-btn').forEach(b => b.classList.remove('active'));
+    btnEl.classList.add('active');
+}
 
-    function autoGrow(element) {
-        element.style.height = "auto";
-        element.style.height = (element.scrollHeight - 10) + "px";
-    }
+/* ============ 予定表タブ：タイムライン描画 ============ */
+function timeToMinutes(t) {
+    const parts = (t || "00:00").split(':').map(Number);
+    return (parts[0] || 0) * 60 + (parts[1] || 0);
+}
+function calcGapPx(diffMin) {
+    if (diffMin <= 0) return 14;
+    return Math.max(14, Math.min(90, 14 + diffMin * 0.85));
+}
+function nowMinutes() {
+    const n = new Date();
+    return n.getHours() * 60 + n.getMinutes();
+}
+function nowLabel() {
+    const n = new Date();
+    return `${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')} イマ`;
+}
 
-    document.addEventListener("click", () => {
-        try {
-            const AudioContext = window.AudioContext || window.webkitAudioContext;
-            if (AudioContext) {
-                const ctx = new AudioContext();
-                if (ctx.state === "suspended") ctx.resume();
-            }
-        } catch(e){}
-    }, { once: true });
+function buildNowIndicatorHtml() {
+    return `
+        <div class="now-indicator">
+            <div class="stub-col"><div class="now-dot"></div></div>
+            <div class="now-line"></div>
+            <div class="now-label">${nowLabel()}</div>
+        </div>`;
+}
 
-    function renderTimeline() {
-        const container = document.getElementById('timeline');
-        container.innerHTML = '';
-        currentEvents.sort((a, b) => a.time.localeCompare(b.time));
-        
-        currentEvents.forEach((ev, idx) => {
-            const item = document.createElement('div');
-            item.className = `timeline-item ${ev.type} ${ev.done ? 'is-done' : ''}`;
-            
-            let chimeIcon = ev.chime ? "🔔" : "🔕";
-            let chimeClass = ev.chime ? "chime-toggle-btn active" : "chime-toggle-btn";
-            
-            item.innerHTML = `
+function buildRowHtml(ev, idx) {
+    const chimeIcon = ev.chime ? "🔔" : "🔕";
+    const chimeClass = ev.chime ? "chime-toggle-btn active" : "chime-toggle-btn";
+    return `
+        <div class="timeline-row">
+            <div class="node-col ${ev.done ? 'is-done-node' : ''}">
                 <label class="checkbox-container">
                     <input type="checkbox" ${ev.done ? 'checked' : ''} onclick="toggleItem(${idx})">
                     <span class="checkmark"></span>
                 </label>
+                <div class="connector-line"></div>
+            </div>
+            <div class="timeline-item ${ev.type} ${ev.done ? 'is-done' : ''}">
                 <div class="item-center">
-                    <div>
+                    <div class="time-row-wrapper">
                         <input type="text" class="time-input" value="${ev.time}" onchange="updateTime(${idx}, this.value)">
+                        <button class="${chimeClass}" onclick="toggleChime(${idx})">${chimeIcon}</button>
                     </div>
                     <div class="title-input" contenteditable="true" onblur="updateTitle(${idx}, this.innerText)">${ev.title}</div>
                     <div class="detail-input" contenteditable="true" onblur="updateDetail(${idx}, this.innerText)">${ev.detail || ''}</div>
                 </div>
                 <button class="delete-btn" onclick="deleteItem(${idx})">✕</button>
-            `;
-            container.appendChild(item);
-        });
+            </div>
+        </div>`;
+}
+
+function buildGapHtml(diffMin, isDoneGap) {
+    const px = calcGapPx(diffMin);
+    return `
+        <div class="gap-connector ${isDoneGap ? 'is-done-gap' : ''}">
+            <div class="stub-col"><div class="stub-line" style="height:${px}px;"></div></div>
+            <div style="flex-grow:1;"></div>
+        </div>`;
+}
+
+function renderTimeline() {
+    // 文字入力中(contenteditable/時刻入力)は再描画でフォーカスが飛ぶため、その間だけ更新をスキップ
+    // (チェックボックスや削除ボタンのクリックはブロックしない)
+    const active = document.activeElement;
+    const timelineEl = document.getElementById('timeline');
+    if (active && timelineEl && timelineEl.contains(active)) {
+        const isTextEditing = active.classList.contains('title-input') ||
+            active.classList.contains('detail-input');
+        if (isTextEditing) return;
     }
 
-    function playChimeSound() {
-        try {
-            const AudioContext = window.AudioContext || window.webkitAudioContext;
-            if (!AudioContext) return;
-            const ctx = new AudioContext();
-            const osc1 = ctx.createOscillator(); const gain1 = ctx.createGain();
-            osc1.type = 'sine'; osc1.frequency.setValueAtTime(880, ctx.currentTime);
-            gain1.gain.setValueAtTime(0.2, ctx.currentTime); gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
-            osc1.connect(gain1); gain1.connect(ctx.destination);
-            const osc2 = ctx.createOscillator(); const gain2 = ctx.createGain();
-            osc2.type = 'sine'; osc2.frequency.setValueAtTime(659.25, ctx.currentTime + 0.25);
-            gain2.gain.setValueAtTime(0, ctx.currentTime); gain2.gain.setValueAtTime(0.2, ctx.currentTime + 0.25);
-            gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.0);
-            osc2.connect(gain2); gain2.connect(ctx.destination);
-            osc1.start(ctx.currentTime); osc1.stop(ctx.currentTime + 0.6);
-            osc2.start(ctx.currentTime + 0.25); osc2.stop(ctx.currentTime + 1.0);
-        } catch (e) {}
+    const container = document.getElementById('timeline');
+    currentEvents.sort((a, b) => a.time.localeCompare(b.time));
+
+    const nowMin = nowMinutes();
+    let html = '';
+    let indicatorInserted = false;
+
+    if (currentEvents.length === 0) {
+        container.innerHTML = '<div class="meal-plan-empty">予定がまだありません。チャットタブでネコ助に相談してみるニャ🐾</div>';
+        return;
     }
 
-    function startTimePatrol() {
-        setInterval(() => {
-            const now = new Date();
-            const currentStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-            if (currentStr !== lastCheckedMinute) {
-                lastCheckedMinute = currentStr;
-                const shouldRing = currentEvents.some(ev => ev.chime && !ev.done && ev.time === currentStr);
-                if (shouldRing) playChimeSound();
-            }
-        }, 1000);
+    if (nowMin < timeToMinutes(currentEvents[0].time)) {
+        html += buildNowIndicatorHtml();
+        indicatorInserted = true;
     }
 
-    function formatTimeInput(val) {
-        let str = val.replace(/[０-９]/g, (s) => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
-        let nums = str.replace(/[^0-9]/g, '');
-        if (nums.length === 4) return nums.substring(0, 2) + ":" + nums.substring(2, 4);
-        return val;
-    }
-
-    // 🔒 あらゆる手動操作が起きた瞬間に「即座に永久保存」を走らせるニャ
-    function updateTime(idx, newTime) { currentEvents[idx].time = formatTimeInput(newTime); renderTimeline(); saveToLocalStorage(); }
-    function updateTitle(idx, newTitle) { currentEvents[idx].title = newTitle; saveToLocalStorage(); }
-    function updateDetail(idx, newDetail) { currentEvents[idx].detail = newDetail; saveToLocalStorage(); }
-    function deleteItem(idx) { currentEvents.splice(idx, 1); renderTimeline(); saveToLocalStorage(); }
-    function toggleItem(idx) { currentEvents[idx].done = !currentEvents[idx].done; renderTimeline(); saveToLocalStorage(); }
-    function toggleChime(idx) { currentEvents[idx].chime = !currentEvents[idx].chime; playChimeSound(); renderTimeline(); saveToLocalStorage(); }
-
-    function applyProposedSchedule(buttonEl, jsonStr) {
-        const proposed = JSON.parse(decodeURIComponent(jsonStr));
-        const doneTitles = currentEvents.filter(e => e.done).map(e => e.title);
-        
-        proposed.forEach(newEvent => {
-            if (doneTitles.includes(newEvent.title)) newEvent.done = true;
-            const matchOld = currentEvents.find(old => old.title === newEvent.title);
-            if (matchOld && matchOld.chime !== undefined) newEvent.chime = matchOld.chime;
-        });
-
-        currentEvents = proposed;
-        renderTimeline();
-        saveToLocalStorage(); // AIからの反映完了時もガチッと永久保存！
-
-        buttonEl.disabled = true;
-        buttonEl.style.background = "#95a5a6";
-        buttonEl.innerText = "反映しました ✓";
-    }
-
-    function appendChatBubble(sender, text, isUser = false, rawJson = null) {
-        const room = document.getElementById('chat-talk-room');
-        const row = document.createElement('div');
-        row.className = `chat-bubble-row ${isUser ? 'user-side' : ''}`;
-        if (isUser) {
-            row.innerHTML = `<div class="chat-msg-body"><div class="bubble">${text}</div></div>`;
-        } else {
-            let buttonHtml = '';
-            if (rawJson) {
-                const encodedJson = encodeURIComponent(JSON.stringify(rawJson));
-                buttonHtml = `
-                    <div class="apply-wrapper">
-                        <button class="apply-btn" onclick="applyProposedSchedule(this, '${encodedJson}')">
-                            <span>📅 この案をタイムラインに反映する🐾</span>
-                        </button>
-                    </div>
-                `;
-            }
-            row.innerHTML = `
-                <div class="chat-avatar">🐱</div><div class="chat-msg-body"><div class="chat-sender-name">${sender}</div><div class="bubble">${text}${buttonHtml}</div></div>
-            `;
-        }
-        room.appendChild(row); room.scrollTop = room.scrollHeight;
-    }
-
-    async function handleSend() {
-        const input = document.getElementById('chat-input');
-        const text = input.value.trim();
-        if (!text) return;
-        if (!API_KEY) { alert("APIキーが設定されていません。"); return; }
-        input.value = ''; input.style.height = "auto";
-        appendChatBubble("ユーザー", text, true);
-        document.getElementById('status').style.display = 'block';
-
-        const systemPrompt = `
-        あなたはユーザーのスケジュール設計を助ける優秀なAIアシスタント「ネコ助」です。
-        語尾には必ず「〜ニャ」「〜ニャ〜🐾」をつけて、おしゃべりしてください。
-        【現在のタイムラインデータ】: ${JSON.stringify(currentEvents)}
-        形成したコメントの後に必ず『===DATA===』を挟んで最新のJSONデータを出力してください。
-        【生成ルール】:
-        1. 夕飯メニュー指定時は18:00〜19:30の間に"type": "cooking"として調理手順を追加するか、18:00のルーティン詳細に追記してください。
-        2. 午後は18:00まで基本的に自由時間のため12:00〜18:00の間はタイムラインを空けてください。
-        3. ベースルーティン[起床(07:00), お弁当(07:30), 朝食(08:00), 朝家事(09:05), ランチ(12:00), 夜家事調理(18:00), 夕食片付け(19:30), 入浴(22:00), 就寝(23:50)]は絶対削除禁止。
-        `;
-
-        try {
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${API_KEY}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ contents: [{ parts: [{ text: systemPrompt + "\n\nユーザーの入力: " + text }] }] })
-            });
-            const data = await response.json(); const aiText = data.candidates[0].content.parts[0].text;
-            const parts = aiText.split('===DATA===');
-            if (parts.length === 2) {
-                let jsonText = parts[1].replace(/```json|```/g, '').trim();
-                appendChatBubble("ネコ助", parts[0].trim(), false, JSON.parse(jsonText));
+    currentEvents.forEach((ev, idx) => {
+        html += buildRowHtml(ev, idx);
+        const isLast = idx === currentEvents.length - 1;
+        if (!isLast) {
+            const nextEv = currentEvents[idx + 1];
+            const curMin = timeToMinutes(ev.time);
+            const nextMin = timeToMinutes(nextEv.time);
+            if (!indicatorInserted && nowMin >= curMin && nowMin < nextMin) {
+                html += buildNowIndicatorHtml();
+                indicatorInserted = true;
             } else {
-                appendChatBubble("ネコ助", "ごめんニャ、作戦をうまくまとめられなかったニャ。");
+                html += buildGapHtml(nextMin - curMin, ev.done);
             }
-        } catch (error) {
-            appendChatBubble("ネコ助", "エラーが発生しちゃったニャ……");
-            console.error(error);
-        } finally { document.getElementById('status').style.display = 'none'; }
-    }
+        } else if (!indicatorInserted && nowMin >= timeToMinutes(ev.time)) {
+            html += buildNowIndicatorHtml();
+            indicatorInserted = true;
+        }
+    });
 
-    // 👆 スワイプ可変式チャットシートロジック
-    const movableChat = document.getElementById('movable-chat');
-    const dragHandle = document.getElementById('drag-handle');
-    let isDragging = false; let startY = 0; let startHeight = 0;
-    movableChat.style.height = '270px';
+    container.innerHTML = html;
+}
 
-    function initDrag(e) {
-        isDragging = true;
-        startY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
-        startHeight = parseInt(document.defaultView.getComputedStyle(movableChat).height, 10);
-        document.documentElement.addEventListener('mousemove', doDrag, false);
-        document.documentElement.addEventListener('touchmove', doDrag, { passive: false });
-        document.documentElement.addEventListener('mouseup', stopDrag, false);
-        document.documentElement.addEventListener('touchend', stopDrag, false);
-    }
-    function doDrag(e) {
-        if (!isDragging) return;
-        const clientY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
-        movableChat.style.height = (startHeight + (startY - clientY)) + 'px';
-        if (e.cancelable) e.preventDefault();
-    }
-    function stopDrag() {
-        isDragging = false;
-        document.documentElement.removeEventListener('mousemove', doDrag, false); document.documentElement.removeEventListener('touchmove', doDrag, false);
-        document.documentElement.removeEventListener('mouseup', stopDrag, false); document.documentElement.removeEventListener('touchend', stopDrag, false);
-        const finalHeight = parseInt(movableChat.style.height, 10);
-        if (finalHeight < 160) movableChat.style.height = '110px';
-        else if (finalHeight > window.innerHeight * 0.6) movableChat.style.height = 'calc(100vh - env(safe-area-inset-top) - 40px)';
-    }
-    dragHandle.addEventListener('mousedown', initDrag, false);
-    dragHandle.addEventListener('touchstart', initDrag, { passive: false });
+function playChimeSound() {
+    try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        const ctx = new AudioContext();
+        const osc1 = ctx.createOscillator(); const gain1 = ctx.createGain();
+        osc1.type = 'sine'; osc1.frequency.setValueAtTime(880, ctx.currentTime);
+        gain1.gain.setValueAtTime(0.2, ctx.currentTime); gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+        osc1.connect(gain1); gain1.connect(ctx.destination);
+        const osc2 = ctx.createOscillator(); const gain2 = ctx.createGain();
+        osc2.type = 'sine'; osc2.frequency.setValueAtTime(659.25, ctx.currentTime + 0.25);
+        gain2.gain.setValueAtTime(0, ctx.currentTime); gain2.gain.setValueAtTime(0.2, ctx.currentTime + 0.25);
+        gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.0);
+        osc2.connect(gain2); gain2.connect(ctx.destination);
+        osc1.start(ctx.currentTime); osc1.stop(ctx.currentTime + 0.6);
+        osc2.start(ctx.currentTime + 0.25); osc2.stop(ctx.currentTime + 1.0);
+    } catch (e) {}
+}
 
-    // アプリ起動時の初期処理ニャ！
-    loadFromLocalStorage(); // 💾 保存データを安全に復元するニャ
-    updateDateDisplay();
+function startTimePatrol() {
+    setInterval(() => {
+        const now = new Date();
+        const currentStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+        if (currentStr !== lastCheckedMinute) {
+            lastCheckedMinute = currentStr;
+            const shouldRing = currentEvents.some(ev => ev.chime && !ev.done && ev.time === currentStr);
+            if (shouldRing) playChimeSound();
+            renderTimeline(); // 現在時刻インジケーターの位置を更新
+        }
+    }, 1000);
+}
+
+function formatTimeInput(val) {
+    let str = val.replace(/[０-９]/g, (s) => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
+    let nums = str.replace(/[^0-9]/g, '');
+    if (nums.length === 4) return nums.substring(0, 2) + ":" + nums.substring(2, 4);
+    return val;
+}
+
+function updateTime(idx, newTime) { currentEvents[idx].time = formatTimeInput(newTime); renderTimeline(); saveToLocalStorage(); }
+function updateTitle(idx, newTitle) { currentEvents[idx].title = newTitle; saveToLocalStorage(); }
+function updateDetail(idx, newDetail) { currentEvents[idx].detail = newDetail; saveToLocalStorage(); }
+function deleteItem(idx) { currentEvents.splice(idx, 1); renderTimeline(); saveToLocalStorage(); }
+function toggleItem(idx) { currentEvents[idx].done = !currentEvents[idx].done; renderTimeline(); saveToLocalStorage(); }
+function toggleChime(idx) { currentEvents[idx].chime = !currentEvents[idx].chime; playChimeSound(); renderTimeline(); saveToLocalStorage(); }
+
+function applyProposedSchedule(buttonEl, jsonStr) {
+    const proposed = JSON.parse(decodeURIComponent(jsonStr));
+    const doneTitles = currentEvents.filter(e => e.done).map(e => e.title);
+
+    proposed.forEach(newEvent => {
+        if (doneTitles.includes(newEvent.title)) newEvent.done = true;
+        const matchOld = currentEvents.find(old => old.title === newEvent.title);
+        if (matchOld && matchOld.chime !== undefined) newEvent.chime = matchOld.chime;
+    });
+
+    currentEvents = proposed;
     renderTimeline();
-    startTimePatrol();
+    saveToLocalStorage();
+
+    buttonEl.disabled = true;
+    buttonEl.innerText = "反映しました ✓";
+}
+
+/* ============ チャットタブ（予定相談） ============ */
+function appendChatBubble(sender, text, isUser, rawJson) {
+    const room = document.getElementById('chat-talk-room');
+    const row = document.createElement('div');
+    row.className = `chat-bubble-row ${isUser ? 'user-side' : ''}`;
+    if (isUser) {
+        row.innerHTML = `<div class="chat-msg-body"><div class="bubble">${text}</div></div>`;
+    } else {
+        let buttonHtml = '';
+        if (rawJson) {
+            const encodedJson = encodeURIComponent(JSON.stringify(rawJson));
+            buttonHtml = `
+                <div class="apply-wrapper">
+                    <button class="apply-btn" onclick="applyProposedSchedule(this, '${encodedJson}')">
+                        <span>📅 この案をタイムラインに反映する🐾</span>
+                    </button>
+                </div>`;
+        }
+        row.innerHTML = `<div class="chat-avatar">🐱</div><div class="chat-msg-body"><div class="chat-sender-name">ネコ助</div><div class="bubble">${text}${buttonHtml}</div></div>`;
+    }
+    room.appendChild(row);
+    room.scrollTop = room.scrollHeight;
+}
+
+async function handleSend() {
+    const input = document.getElementById('chat-input');
+    const text = input.value.trim();
+    if (!text) return;
+    if (!API_KEY) { alert("APIキーが設定されていません。"); return; }
+    input.value = ''; input.style.height = "auto";
+    appendChatBubble("ユーザー", text, true);
+    document.getElementById('status').style.display = 'block';
+
+    const systemPrompt = `
+    あなたはユーザーのスケジュール設計を助ける優秀なAIアシスタント「ネコ助」です。
+    語尾には必ず「〜ニャ」「〜ニャ〜🐾」をつけて、おしゃべりしてください。
+    【現在のタイムラインデータ】: ${JSON.stringify(currentEvents)}
+    形成したコメントの後に必ず『===DATA===』を挟んで最新のJSONデータを出力してください。
+    【生成ルール】:
+    1. 午後は18:00まで基本的に自由時間のため12:00〜18:00の間はタイムラインを空けてください。
+    2. ベースルーティン[起床(07:00), お弁当(07:30), 朝食(08:00), 朝家事(09:05), ランチ(12:00), 夜家事調理(18:00), 夕食片付け(19:30), 入浴(22:00), 就寝(23:50)]は絶対削除禁止。
+    `;
+
+    try {
+        const response = await fetch(`${GEMINI_ENDPOINT}?key=${API_KEY}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents: [{ parts: [{ text: systemPrompt + "\n\nユーザーの入力: " + text }] }] })
+        });
+        const data = await response.json();
+        const aiText = data.candidates[0].content.parts[0].text;
+        const parts = aiText.split('===DATA===');
+        if (parts.length === 2) {
+            let jsonText = parts[1].replace(/```json|```/g, '').trim();
+            appendChatBubble("ネコ助", parts[0].trim(), false, JSON.parse(jsonText));
+        } else {
+            appendChatBubble("ネコ助", "ごめんニャ、作戦をうまくまとめられなかったニャ。");
+        }
+    } catch (error) {
+        appendChatBubble("ネコ助", "エラーが発生しちゃったニャ……");
+        console.error(error);
+    } finally {
+        document.getElementById('status').style.display = 'none';
+    }
+}
+
+/* ============ 献立＆調理タブ ============ */
+function switchMealView(view) {
+    mealTabView = view;
+    document.getElementById('meal-view-chat').classList.toggle('active', view === 'chat');
+    document.getElementById('meal-view-plan').classList.toggle('active', view === 'plan');
+    document.getElementById('seg-chat-btn').classList.toggle('active', view === 'chat');
+    document.getElementById('seg-plan-btn').classList.toggle('active', view === 'plan');
+    if (view === 'plan') renderMealPlan();
+    if (view === 'chat') {
+        const room = document.getElementById('meal-chat-talk-room');
+        room.scrollTop = room.scrollHeight;
+    }
+}
+
+function renderMealChatRoom() {
+    const room = document.getElementById('meal-chat-talk-room');
+    room.innerHTML = '';
+    mealMessages.forEach(m => appendMealBubbleFromData(m));
+    room.scrollTop = room.scrollHeight;
+}
+
+function appendMealBubbleFromData(m) {
+    const room = document.getElementById('meal-chat-talk-room');
+    const row = document.createElement('div');
+    const isUser = m.sender === 'user';
+    row.className = `chat-bubble-row ${isUser ? 'user-side' : ''}`;
+    if (isUser) {
+        row.innerHTML = `<div class="chat-msg-body"><div class="bubble">${m.text}</div></div>`;
+    } else {
+        const planNote = m.plan ? `<div class="plan-note">🍳 段取りタブに反映したニャ！</div>` : '';
+        row.innerHTML = `<div class="chat-avatar">🐱</div><div class="chat-msg-body"><div class="chat-sender-name">ネコ助</div><div class="bubble">${m.text}${planNote}</div></div>`;
+    }
+    room.appendChild(row);
+}
+
+function appendMealBubbleLive(sender, text, isUser, plan) {
+    const data = { sender: isUser ? 'user' : 'nekosuke', text: text, plan: plan || null };
+    mealMessages.push(data);
+    appendMealBubbleFromData(data);
+    const room = document.getElementById('meal-chat-talk-room');
+    room.scrollTop = room.scrollHeight;
+    saveMealChat();
+}
+
+const MEAL_SYSTEM_PROMPT = `
+あなたはユーザーの夕食の献立と調理の段取りを考える、優秀なAIアシスタント「ネコ助」です。
+語尾には「〜ニャ」「〜ニャ〜🐾」をつけてください。
+食材や好みの相談に自由に応じ、献立が決まったら「効率よく段取りを組んで」、
+以下のフォーマットでコメントの後に『===PLAN===』を挟んでJSONを出力してください：
+{ "dish": "...", "steps": [{ "time": "...", "title": "...", "detail": "..." }] }
+段取りがまだ確定していない相談段階では、JSONを出力せずコメントのみ返してください。
+`;
+
+async function handleMealSend() {
+    const input = document.getElementById('meal-chat-input');
+    const text = input.value.trim();
+    if (!text) return;
+    if (!API_KEY) { alert("APIキーが設定されていません。"); return; }
+    input.value = ''; input.style.height = "auto";
+    appendMealBubbleLive('user', text, true);
+    document.getElementById('meal-status').style.display = 'block';
+
+    // 直近の会話履歴のみ渡す(予定表データは一切含めない)
+    const historyText = mealMessages.slice(-10).map(m => `${m.sender === 'user' ? 'ユーザー' : 'ネコ助'}: ${m.text}`).join('\n');
+
+    try {
+        const response = await fetch(`${GEMINI_ENDPOINT}?key=${API_KEY}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents: [{ parts: [{ text: MEAL_SYSTEM_PROMPT + "\n\n【これまでの会話】\n" + historyText + "\n\nユーザーの最新の入力: " + text }] }] })
+        });
+        const data = await response.json();
+        const aiText = data.candidates[0].content.parts[0].text;
+        const parts = aiText.split('===PLAN===');
+        if (parts.length === 2) {
+            let jsonText = parts[1].replace(/```json|```/g, '').trim();
+            const plan = JSON.parse(jsonText);
+            mealPlan = plan;
+            saveMealPlan();
+            appendMealBubbleLive('nekosuke', parts[0].trim(), false, plan);
+            switchMealView('plan');
+        } else {
+            appendMealBubbleLive('nekosuke', aiText.trim(), false, null);
+        }
+    } catch (error) {
+        appendMealBubbleLive('nekosuke', "エラーが発生しちゃったニャ……", false, null);
+        console.error(error);
+    } finally {
+        document.getElementById('meal-status').style.display = 'none';
+    }
+}
+
+function buildMealRowHtml(step) {
+    return `
+        <div class="timeline-row">
+            <div class="node-col">
+                <div class="checkbox-container" style="pointer-events:none;">
+                    <span class="checkmark" style="border-color:var(--cooking);"></span>
+                </div>
+                <div class="connector-line" style="background:var(--cooking);opacity:0.5;"></div>
+            </div>
+            <div class="timeline-item cooking">
+                <div class="item-center">
+                    <div class="time-row-wrapper">
+                        <span class="time-input" style="pointer-events:none;">${step.time}</span>
+                    </div>
+                    <div class="title-input" style="cursor:default;">${step.title}</div>
+                    <div class="detail-input" style="cursor:default;">${step.detail || ''}</div>
+                </div>
+            </div>
+        </div>`;
+}
+
+function renderMealPlan() {
+    const container = document.getElementById('meal-plan-content');
+    if (!mealPlan || !mealPlan.steps || mealPlan.steps.length === 0) {
+        container.innerHTML = '<div class="meal-plan-empty">まだ段取りが決まっていないニャ。チャットで献立を相談してニャ🐾</div>';
+        return;
+    }
+    let html = `
+        <div class="meal-plan-header">
+            <div class="dish-label">今日の献立</div>
+            <h2>${mealPlan.dish || ''}</h2>
+        </div>
+        <div class="timeline-wrap" style="padding-top:6px;">`;
+    mealPlan.steps.forEach((step, idx) => {
+        html += buildMealRowHtml(step);
+        if (idx < mealPlan.steps.length - 1) {
+            const diff = timeToMinutes(mealPlan.steps[idx + 1].time) - timeToMinutes(step.time);
+            const px = calcGapPx(diff);
+            html += `<div class="gap-connector"><div class="stub-col"><div class="stub-line" style="height:${px}px;background:var(--cooking);opacity:0.5;"></div></div><div style="flex-grow:1;"></div></div>`;
+        }
+    });
+    html += `</div>`;
+    container.innerHTML = html;
+}
+
+/* ============ 日記出力機能 ============ */
+function openDiaryModal() {
+    document.getElementById('diary-overlay').classList.add('active');
+    document.getElementById('diary-body').innerHTML = `
+        <p style="font-size:13px;color:var(--text-sub);line-height:1.6;margin-top:0;">
+            完了した予定と今日の献立から、ネコ助が短い日記を書くニャ。NotebookLMなどへの貼り付けにどうぞ。
+        </p>
+        <button class="diary-gen-btn" onclick="generateDiary()">✍️ 日記を生成する</button>
+    `;
+}
+function closeDiaryModal() {
+    document.getElementById('diary-overlay').classList.remove('active');
+}
+
+async function generateDiary() {
+    if (!API_KEY) { alert("APIキーが設定されていません。"); return; }
+    document.getElementById('diary-body').innerHTML = `<div class="diary-loading">🐱 ネコ助が今日を振り返っているニャ...</div>`;
+
+    const doneTasks = currentEvents.filter(e => e.done).map(e => e.title);
+    const todayMenu = (mealPlan && mealPlan.dish) ? mealPlan.dish : '';
+
+    const prompt = `
+    あなたはユーザーの一日の記録係「ネコ助」です。語尾に「〜ニャ」を軽く交える程度にして、読みやすい日記文にしてください。
+    以下の情報から、今日の出来事を振り返る短い日記（150〜250字程度、地の文中心）を書いてください。JSONやマークダウンは使わず、日記本文のみを出力してください。
+    【今日完了したこと】: ${doneTasks.length > 0 ? doneTasks.join('、') : '（特に記録なし）'}
+    【今日の夕食メニュー】: ${todayMenu || '（未定）'}
+    `;
+
+    try {
+        const response = await fetch(`${GEMINI_ENDPOINT}?key=${API_KEY}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+        });
+        const data = await response.json();
+        const diaryText = data.candidates[0].content.parts[0].text.trim();
+        renderDiaryResult(diaryText);
+    } catch (error) {
+        document.getElementById('diary-body').innerHTML = `<div class="diary-loading">エラーが発生しちゃったニャ……もう一度試してニャ。</div>`;
+        console.error(error);
+    }
+}
+
+function renderDiaryResult(diaryText) {
+    document.getElementById('diary-body').innerHTML = `
+        <textarea id="diary-textarea" class="diary-textarea" readonly>${diaryText}</textarea>
+        <div class="diary-actions">
+            <button class="diary-action-btn diary-copy-btn" onclick="copyDiaryText()">📋 コピー</button>
+            <button class="diary-action-btn diary-save-btn" onclick="downloadDiaryText()">💾 テキストで保存</button>
+        </div>
+    `;
+}
+
+function copyDiaryText() {
+    const ta = document.getElementById('diary-textarea');
+    navigator.clipboard.writeText(ta.value).then(() => {
+        alert('コピーしたニャ📋');
+    }).catch(() => {
+        ta.select();
+        document.execCommand('copy');
+        alert('コピーしたニャ📋');
+    });
+}
+
+function downloadDiaryText() {
+    const ta = document.getElementById('diary-textarea');
+    const d = new Date();
+    const dateStr = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+    const filename = `DailyPlannerAI_日記_${dateStr}.txt`;
+    const blob = new Blob([ta.value], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+/* ============ 起動処理 ============ */
+initApp();
+updateDateDisplay();
+renderTimeline();
+renderMealChatRoom();
+startTimePatrol();
+
 </script>
 </body>
 </html>
