@@ -30,7 +30,6 @@
             background-color: var(--bg-color);
             color: var(--text-main);
             margin: 0;
-            /* ⚠️ チャットが可変式（最大全画面近く）になるため、下部パディングを調整 */
             padding: 24px 16px 300px 16px; 
             max-width: 480px;
             margin: 0 auto;
@@ -88,7 +87,7 @@
         .timeline-item.is-done { opacity: 0.4; }
         .timeline-item.is-done .title-input, .timeline-item.is-done .detail-input { text-decoration: line-through; }
 
-        /* 📱 引っ張って広げられる可変式モーダルチャットシート */
+        /* 📱 可変式モーダルチャットシート */
         .chat-section {
             position: fixed; bottom: 0; left: 0; right: 0;
             background: #ffffff;
@@ -96,29 +95,25 @@
             border-top: 1px solid var(--border-color); z-index: 1000;
             box-shadow: 0 -10px 30px rgba(0,0,0,0.08);
             display: flex; flex-direction: column;
-            /* 縦幅の制限。初期状態は JS で制御するニャ */
             height: 270px; 
             max-height: calc(100vh - env(safe-area-inset-top) - 20px);
             min-height: 110px;
-            transition: height 0.1s ease-out; /* ドラッグの追従をスムーズにするニャ */
+            transition: height 0.1s ease-out; 
         }
         
         .chat-container-inner { max-width: 480px; margin: 0 auto; display: flex; flex-direction: column; width: 100%; height: 100%; }
 
-        /* 👆 引っ張るためのオシャレな上部ハンドルバー */
         .chat-drag-handle {
             width: 100%; height: 26px; background: #ffffff; border-top-left-radius: 24px; border-top-right-radius: 24px;
             display: flex; align-items: center; justify-content: center; cursor: ns-resize; touch-action: none;
         }
-        .chat-drag-handle::after {
-            content: ""; width: 40px; height: 5px; background: #cbd5e0; border-radius: 3px;
-        }
+        .chat-drag-handle::after { content: ""; width: 40px; height: 5px; background: #cbd5e0; border-radius: 3px; }
 
         .status-indicator { text-align: center; font-size: 11px; color: #6c5ce7; font-weight: bold; padding: 4px 0; background: #eef0f6; border-bottom: 1px solid #e2e1f0; }
 
         .chat-talk-room {
             background-color: var(--line-bg);
-            flex-grow: 1; /* 縦幅に合わせてビョーンと伸び縮みするニャ */
+            flex-grow: 1; 
             overflow-y: auto;
             padding: 14px;
             display: flex;
@@ -140,11 +135,7 @@
             position: relative;
         }
 
-        .user-side .bubble {
-            background: var(--line-green); color: #000000;
-            border-radius: 16px; border-top-right-radius: 4px; 
-            border-top-left-radius: 16px;
-        }
+        .user-side .bubble { background: var(--line-green); color: #000000; border-radius: 16px; border-top-right-radius: 4px; border-top-left-radius: 16px; }
 
         .apply-wrapper { margin-top: 6px; display: flex; justify-content: flex-start; }
         .apply-btn {
@@ -177,10 +168,8 @@
 
 <div id="movable-chat" class="chat-section">
     <div class="chat-drag-handle" id="drag-handle"></div>
-
     <div class="chat-container-inner">
         <div id="status" class="status-indicator" style="display:none;">🎀 ネコ助が作戦を組み立て中ニャ...</div>
-
         <div id="chat-talk-room" class="chat-talk-room">
             <div class="chat-bubble-row">
                 <div class="chat-avatar">🐱</div>
@@ -190,14 +179,12 @@
                 </div>
             </div>
         </div>
-
         <div class="input-bar-wrapper">
             <textarea id="chat-input" class="chat-input" rows="1" placeholder="予定、メニューを入力ニャ..." oninput="autoGrow(this)"></textarea>
             <button class="send-btn" onclick="handleSend()">
                 <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
             </button>
         </div>
-        
         <button class="key-reset" onclick="resetApiKey()">APIキー再設定</button>
     </div>
 </div>
@@ -211,7 +198,8 @@
 
     function resetApiKey() { localStorage.removeItem('GEMINI_API_KEY'); location.reload(); }
 
-    let currentEvents = [
+    // 🌞 普遍的なマスター初期データ
+    const baseRoutines = [
         { time: "07:00", title: "起床・お部屋リセット", detail: "カーテンを開ける/布団を整える/亀にエサ/猫にごはん/猫のトイレ掃除（実働20分・残り10分バッファ）", type: "routine", done: false, chime: false },
         { time: "07:30", title: "お弁当作り 🍱", detail: "子供のお弁当準備（20分）※休憩なしでダイレクトに開始！", type: "routine", done: false, chime: false },
         { time: "08:00", title: "朝食＆ゆったり休憩 ☕️", detail: "子供が出かけた後の朝ごはん。【最重要】食後にサプリを飲む。", type: "routine", done: false, chime: true },
@@ -223,7 +211,30 @@
         { time: "23:50", title: "就寝 🌙", detail: "夜更かし厳禁・健康のための絶対死守ライン！", type: "routine", done: false, chime: true }
     ];
 
+    let currentEvents = [];
     let lastCheckedMinute = "";
+
+    // 💾 【新設】データをiPhone本体へ全自動で永久保存する関数
+    function saveToLocalStorage() {
+        localStorage.setItem('DAILY_PLANNER_EVENTS', JSON.stringify(currentEvents));
+        const todayStr = new Date().toDateString();
+        localStorage.setItem('DAILY_PLANNER_LAST_DATE', todayStr); // 保存した日付もメモ
+    }
+
+    // 🔄 【新設】アプリ起動時にデータを賢く読み込む（日付またぎ対応）
+    function loadFromLocalStorage() {
+        const savedData = localStorage.getItem('DAILY_PLANNER_EVENTS');
+        const savedDate = localStorage.getItem('DAILY_PLANNER_LAST_DATE');
+        const todayStr = new Date().toDateString();
+
+        // 💡 もし今日初めてアプリを開いた（日付が変わった）場合は、昨日のゴミを捨ててリセット！
+        if (!savedData || savedDate !== todayStr) {
+            currentEvents = [...baseRoutines];
+            saveToLocalStorage();
+        } else {
+            currentEvents = JSON.parse(savedData);
+        }
+    }
 
     function updateDateDisplay() {
         const d = new Date();
@@ -264,9 +275,8 @@
                     <span class="checkmark"></span>
                 </label>
                 <div class="item-center">
-                    <div class="time-row-wrapper">
+                    <div>
                         <input type="text" class="time-input" value="${ev.time}" onchange="updateTime(${idx}, this.value)">
-                        <button class="${chimeClass}" onclick="toggleChime(${idx})">${chimeIcon}</button>
                     </div>
                     <div class="title-input" contenteditable="true" onblur="updateTitle(${idx}, this.innerText)">${ev.title}</div>
                     <div class="detail-input" contenteditable="true" onblur="updateDetail(${idx}, this.innerText)">${ev.detail || ''}</div>
@@ -282,24 +292,15 @@
             const AudioContext = window.AudioContext || window.webkitAudioContext;
             if (!AudioContext) return;
             const ctx = new AudioContext();
-            
-            const osc1 = ctx.createOscillator();
-            const gain1 = ctx.createGain();
-            osc1.type = 'sine';
-            osc1.frequency.setValueAtTime(880, ctx.currentTime);
-            gain1.gain.setValueAtTime(0.2, ctx.currentTime);
-            gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+            const osc1 = ctx.createOscillator(); const gain1 = ctx.createGain();
+            osc1.type = 'sine'; osc1.frequency.setValueAtTime(880, ctx.currentTime);
+            gain1.gain.setValueAtTime(0.2, ctx.currentTime); gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
             osc1.connect(gain1); gain1.connect(ctx.destination);
-            
-            const osc2 = ctx.createOscillator();
-            const gain2 = ctx.createGain();
-            osc2.type = 'sine';
-            osc2.frequency.setValueAtTime(659.25, ctx.currentTime + 0.25);
-            gain2.gain.setValueAtTime(0, ctx.currentTime);
-            gain2.gain.setValueAtTime(0.2, ctx.currentTime + 0.25);
+            const osc2 = ctx.createOscillator(); const gain2 = ctx.createGain();
+            osc2.type = 'sine'; osc2.frequency.setValueAtTime(659.25, ctx.currentTime + 0.25);
+            gain2.gain.setValueAtTime(0, ctx.currentTime); gain2.gain.setValueAtTime(0.2, ctx.currentTime + 0.25);
             gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.0);
             osc2.connect(gain2); gain2.connect(ctx.destination);
-            
             osc1.start(ctx.currentTime); osc1.stop(ctx.currentTime + 0.6);
             osc2.start(ctx.currentTime + 0.25); osc2.stop(ctx.currentTime + 1.0);
         } catch (e) {}
@@ -324,12 +325,13 @@
         return val;
     }
 
-    function updateTime(idx, newTime) { currentEvents[idx].time = formatTimeInput(newTime); renderTimeline(); }
-    function updateTitle(idx, newTitle) { currentEvents[idx].title = newTitle; }
-    function updateDetail(idx, newDetail) { currentEvents[idx].detail = newDetail; }
-    function deleteItem(idx) { currentEvents.splice(idx, 1); renderTimeline(); }
-    function toggleItem(idx) { currentEvents[idx].done = !currentEvents[idx].done; renderTimeline(); }
-    function toggleChime(idx) { currentEvents[idx].chime = !currentEvents[idx].chime; renderTimeline(); }
+    // 🔒 あらゆる手動操作が起きた瞬間に「即座に永久保存」を走らせるニャ
+    function updateTime(idx, newTime) { currentEvents[idx].time = formatTimeInput(newTime); renderTimeline(); saveToLocalStorage(); }
+    function updateTitle(idx, newTitle) { currentEvents[idx].title = newTitle; saveToLocalStorage(); }
+    function updateDetail(idx, newDetail) { currentEvents[idx].detail = newDetail; saveToLocalStorage(); }
+    function deleteItem(idx) { currentEvents.splice(idx, 1); renderTimeline(); saveToLocalStorage(); }
+    function toggleItem(idx) { currentEvents[idx].done = !currentEvents[idx].done; renderTimeline(); saveToLocalStorage(); }
+    function toggleChime(idx) { currentEvents[idx].chime = !currentEvents[idx].chime; playChimeSound(); renderTimeline(); saveToLocalStorage(); }
 
     function applyProposedSchedule(buttonEl, jsonStr) {
         const proposed = JSON.parse(decodeURIComponent(jsonStr));
@@ -343,6 +345,7 @@
 
         currentEvents = proposed;
         renderTimeline();
+        saveToLocalStorage(); // AIからの反映完了時もガチッと永久保存！
 
         buttonEl.disabled = true;
         buttonEl.style.background = "#95a5a6";
@@ -353,7 +356,6 @@
         const room = document.getElementById('chat-talk-room');
         const row = document.createElement('div');
         row.className = `chat-bubble-row ${isUser ? 'user-side' : ''}`;
-
         if (isUser) {
             row.innerHTML = `<div class="chat-msg-body"><div class="bubble">${text}</div></div>`;
         } else {
@@ -369,16 +371,10 @@
                 `;
             }
             row.innerHTML = `
-                <div class="chat-avatar">🐱</div>
-                <div class="chat-msg-body">
-                    <div class="chat-sender-name">${sender}</div>
-                    <div class="bubble">${text}${buttonHtml}</div>
-                </div>
+                <div class="chat-avatar">🐱</div><div class="chat-msg-body"><div class="chat-sender-name">${sender}</div><div class="bubble">${text}${buttonHtml}</div></div>
             `;
         }
-
-        room.appendChild(row);
-        room.scrollTop = room.scrollHeight;
+        room.appendChild(row); room.scrollTop = room.scrollHeight;
     }
 
     async function handleSend() {
@@ -386,74 +382,45 @@
         const text = input.value.trim();
         if (!text) return;
         if (!API_KEY) { alert("APIキーが設定されていません。"); return; }
-
-        input.value = '';
-        input.style.height = "auto";
-        
+        input.value = ''; input.style.height = "auto";
         appendChatBubble("ユーザー", text, true);
         document.getElementById('status').style.display = 'block';
 
         const systemPrompt = `
         あなたはユーザーのスケジュール設計を助ける優秀なAIアシスタント「ネコ助」です。
-        語尾には必ず「〜ニャ」「〜ニャ〜🐾」をつけて、親切で可愛らしくおしゃべりしてください。
-
+        語尾には必ず「〜ニャ」「〜ニャ〜🐾」をつけて、おしゃべりしてください。
         【現在のタイムラインデータ】: ${JSON.stringify(currentEvents)}
-        
-        ユーザーの要望を聞いて、「こうするのはどうニャ？」とアイデアをチャットで会話してください。
-        形成したコメントの後に必ず『===DATA===』を挟んで、現在のデータにユーザーの要望をマージした全体の最新JSON配列データのみを正確に出力してください。
-
+        形成したコメントの後に必ず『===DATA===』を挟んで最新のJSONデータを出力してください。
         【生成ルール】:
-        1. ユーザーから夕飯のメニューや献立が指定されたら、18:00に開始する「夜の家事＆夕食の調理スタート」のタスク詳細(detail)の中に、そのメニューの具体的な調理ステップを書き加えるか、18:00〜19:30の間に"type": "cooking"として調理手順を追加してください。変な夕方の時間帯に勝手に単独の調理タスクを作らないでください。
-        2. 午後は18:00まで基本的に自由時間となるため、特別な午後のお出かけ予定が指定されない限り、12:00〜18:00の間はタイムラインを空けておいてください。
-        3. 新しい予定を追加する場合、太字になる"title"と詳細説明の"detail"、および"type": "task"（または"cooking"や"calendar"）、"chime": falseのオブジェクトを正確に作ってください。
-        4. 起床(07:00)、お弁当(07:30)、朝食(08:00)、朝家事(09:05)、ランチ(12:00)、夜家事調理(18:00)、夕食片付け(19:30)、入浴(22:00)、就寝(23:50)のベースルーティンは絶対に消さないでください。
-
-        【絶対厳守の出力フォーマット】:
-        ユーザーへの親切なコメントをココに書くニャ。
-        ===DATA===
-        [
-          {"time": "07:00", "title": "起床・お部屋リセット", "detail": "...", "type": "routine", "done": false, "chime": false},
-          ...
-        ]
+        1. 夕飯メニュー指定時は18:00〜19:30の間に"type": "cooking"として調理手順を追加するか、18:00のルーティン詳細に追記してください。
+        2. 午後は18:00まで基本的に自由時間のため12:00〜18:00の間はタイムラインを空けてください。
+        3. ベースルーティン[起床(07:00), お弁当(07:30), 朝食(08:00), 朝家事(09:05), ランチ(12:00), 夜家事調理(18:00), 夕食片付け(19:30), 入浴(22:00), 就寝(23:50)]は絶対削除禁止。
         `;
 
         try {
             const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${API_KEY}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{ parts: [{ text: systemPrompt + "\n\nユーザーの入力: " + text }] }]
-                })
+                body: JSON.stringify({ contents: [{ parts: [{ text: systemPrompt + "\n\nユーザーの入力: " + text }] }] })
             });
-
-            const data = await response.json();
-            const aiText = data.candidates[0].content.parts[0].text;
-            
+            const data = await response.json(); const aiText = data.candidates[0].content.parts[0].text;
             const parts = aiText.split('===DATA===');
             if (parts.length === 2) {
                 let jsonText = parts[1].replace(/```json|```/g, '').trim();
-                let parsedJson = JSON.parse(jsonText);
-                appendChatBubble("ネコ助", parts[0].trim(), false, parsedJson);
+                appendChatBubble("ネコ助", parts[0].trim(), false, JSON.parse(jsonText));
             } else {
-                appendChatBubble("ネコ助", "ごめんニャ、作戦をうまくまとめられなかったニャ。もう一度送ってみてほしいニャ。");
+                appendChatBubble("ネコ助", "ごめんニャ、作戦をうまくまとめられなかったニャ。");
             }
         } catch (error) {
-            appendChatBubble("ネコ助", "エラーが発生しちゃったニャ……データが混線したかもしれないニャ。");
+            appendChatBubble("ネコ助", "エラーが発生しちゃったニャ……");
             console.error(error);
-        } finally {
-            document.getElementById('status').style.display = 'none';
-        }
+        } finally { document.getElementById('status').style.display = 'none'; }
     }
 
-    // 👆 【超高度スワイプ・ドラッグ開閉ロジック】iPhoneのタッチ操作に対応！
+    // 👆 スワイプ可変式チャットシートロジック
     const movableChat = document.getElementById('movable-chat');
     const dragHandle = document.getElementById('drag-handle');
-    
-    let isDragging = false;
-    let startY = 0;
-    let startHeight = 0;
-
-    // 初期化時の高さを270pxに設定するニャ
+    let isDragging = false; let startY = 0; let startHeight = 0;
     movableChat.style.height = '270px';
 
     function initDrag(e) {
@@ -465,37 +432,25 @@
         document.documentElement.addEventListener('mouseup', stopDrag, false);
         document.documentElement.addEventListener('touchend', stopDrag, false);
     }
-
     function doDrag(e) {
         if (!isDragging) return;
         const clientY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
-        // マウスや指が上に進むほど（clientYが小さくなるほど）高さが高くなるニャ
-        const newHeight = startHeight + (startY - clientY);
-        movableChat.style.height = newHeight + 'px';
-        
-        // スワイプ中に画面が勝手にスクロールするのを防ぐおまじないニャ
+        movableChat.style.height = (startHeight + (startY - clientY)) + 'px';
         if (e.cancelable) e.preventDefault();
     }
-
     function stopDrag() {
         isDragging = false;
-        document.documentElement.removeEventListener('mousemove', doDrag, false);
-        document.documentElement.removeEventListener('touchmove', doDrag, false);
-        document.documentElement.removeEventListener('mouseup', stopDrag, false);
-        document.documentElement.removeEventListener('touchend', stopDrag, false);
-
-        // 磁石のようにパチっといい感じの高さにフィットさせるスナップ処理ニャ
+        document.documentElement.removeEventListener('mousemove', doDrag, false); document.documentElement.removeEventListener('touchmove', doDrag, false);
+        document.documentElement.removeEventListener('mouseup', stopDrag, false); document.documentElement.removeEventListener('touchend', stopDrag, false);
         const finalHeight = parseInt(movableChat.style.height, 10);
-        if (finalHeight < 160) {
-            movableChat.style.height = '110px'; // 最小化（入力欄だけ見える）
-        } else if (finalHeight > window.innerHeight * 0.6) {
-            movableChat.style.height = 'calc(100vh - env(safe-area-inset-top) - 40px)'; // 最大化（ほぼ全画面）
-        }
+        if (finalHeight < 160) movableChat.style.height = '110px';
+        else if (finalHeight > window.innerHeight * 0.6) movableChat.style.height = 'calc(100vh - env(safe-area-inset-top) - 40px)';
     }
-
     dragHandle.addEventListener('mousedown', initDrag, false);
     dragHandle.addEventListener('touchstart', initDrag, { passive: false });
 
+    // アプリ起動時の初期処理ニャ！
+    loadFromLocalStorage(); // 💾 保存データを安全に復元するニャ
     updateDateDisplay();
     renderTimeline();
     startTimePatrol();
