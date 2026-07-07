@@ -381,16 +381,81 @@ function resetApiKey() { localStorage.removeItem('GEMINI_API_KEY'); location.rel
 
 const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent';
 
+/* Gemini API呼び出しの共通ヘルパー。
+   HTTPエラー・安全フィルタによるブロック・candidates欠落などを個別に検知して
+   原因がわかるメッセージを返す(以前は全部「エラーが発生しちゃった」に握りつぶされていた)。
+   maxOutputTokensも明示的に指定し、応答が長くなりがちな予定チャットでの途中切れを防ぐ。 */
+async function callGeminiAPI(promptText, maxOutputTokens) {
+    try {
+        const response = await fetch(`${GEMINI_ENDPOINT}?key=${API_KEY}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: promptText }] }],
+                generationConfig: { maxOutputTokens: maxOutputTokens || 2048, temperature: 0.9 }
+            })
+        });
+
+        if (!response.ok) {
+            let msg = `通信エラー(HTTP ${response.status})`;
+            try {
+                const errData = await response.json();
+                if (errData && errData.error && errData.error.message) msg = errData.error.message;
+            } catch (e) {}
+            console.error('Gemini APIエラー:', msg);
+            return { ok: false, message: msg };
+        }
+
+        const data = await response.json();
+
+        if (data.promptFeedback && data.promptFeedback.blockReason) {
+            console.error('Geminiにより入力がブロックされました:', data.promptFeedback);
+            return { ok: false, message: `安全フィルタによりブロックされたニャ(${data.promptFeedback.blockReason})` };
+        }
+
+        const candidate = data.candidates && data.candidates[0];
+        const textPart = candidate && candidate.content && candidate.content.parts && candidate.content.parts[0];
+        if (!textPart || typeof textPart.text !== 'string') {
+            const reason = candidate && candidate.finishReason ? `(finishReason: ${candidate.finishReason})` : '';
+            console.error('Geminiの応答にテキストが含まれていません:', data);
+            return { ok: false, message: `AIからの応答が空だったニャ ${reason}` };
+        }
+
+        return { ok: true, text: textPart.text };
+    } catch (error) {
+        console.error('Gemini API呼び出し中に例外が発生しました:', error);
+        return { ok: false, message: error.message || String(error) };
+    }
+}
+
+/* AIの応答からJSONブロックを取り出す。コードフェンスの表記ゆれや、
+   前後に余計な文章が混ざっているケースでもできるだけ救い出す。 */
+function extractJsonBlock(rawText) {
+    let t = (rawText || '').replace(/```json/gi, '').replace(/```/g, '').trim();
+    const firstCurly = t.indexOf('{');
+    const firstSquare = t.indexOf('[');
+    let start = -1, openChar = '', closeChar = '';
+    if (firstCurly === -1 && firstSquare === -1) return t;
+    if (firstSquare === -1 || (firstCurly !== -1 && firstCurly < firstSquare)) {
+        start = firstCurly; openChar = '{'; closeChar = '}';
+    } else {
+        start = firstSquare; openChar = '['; closeChar = ']';
+    }
+    const end = t.lastIndexOf(closeChar);
+    if (end > start) return t.substring(start, end + 1);
+    return t;
+}
+
 /* 🌞 普遍的なマスター初期データ（時間軸破壊禁止） */
 const baseRoutines = [
     { time: "07:00", title: "起床・お部屋リセット", detail: "カーテンを開ける/布団を整える/亀にエサ/猫にごはん/猫のトイレ掃除（実働20分・残り10分バッファ）", type: "routine", done: false, chime: false },
     { time: "07:30", title: "お弁当作り 🍱", detail: "子供のお弁当準備（20分）※休憩なしでダイレクトに開始！", type: "routine", done: false, chime: false },
     { time: "08:00", title: "朝食＆ゆったり休憩 ☕️", detail: "子供が出かけた後の朝ごはん。【最重要】食後にサプリを飲む。", type: "routine", done: false, chime: true },
-    { time: "09:05", title: "朝の集中家事＆身支度 🧹", detail: "食器洗い ➔ 洗濯機回す ➔ 掃除ロボ起動。その間に自身の洗面・身支度。", type: "routine", done: false, chime: false },
+    { time: "09:00", title: "朝の集中家事＆身支度 🧹", detail: "食器洗い ➔ 洗濯機回す ➔ 掃除ロボ起動。その間に自身の洗面・身支度。", type: "routine", done: false, chime: true },
     { time: "12:00", title: "ランチ休憩 🥗", detail: "調理・食事・片付けをゆったり含む（90分枠）", type: "routine", done: false, chime: false },
     { time: "18:00", title: "夜の家事＆夕食の調理スタート 🐈", detail: "カーテンを閉める、猫にごはんをあげる、炊飯器のセット、夕食の調理を19:30までに終わらせる。", type: "routine", done: false, chime: false },
-    { time: "19:30", title: "夕食＆片付け 🍽️", detail: "家族での楽しい夕食タイムと、その後の食器洗い・シンク片付け。21:00までにのんびり完了させるニャ。", type: "routine", done: false, chime: false },
-    { time: "22:00", title: "入浴＆自由時間 🎵", detail: "お風呂にゆっくり浸かり、BTSの動画を見たり韓国語の勉強をするリラックスタイム。", type: "routine", done: false, chime: false },
+    { time: "19:30", title: "夕食＆片付け 🍽️", detail: "家族での楽しい夕食タイムと、その後の食器洗い・シンク片付け。21:00までにのんびり完了させるニャ。", type: "routine", done: false, chime: true },
+    { time: "22:00", title: "入浴＆自由時間 🎵", detail: "お風呂にゆっくり浸かり、BTSの動画を見たり韓国語の勉強をするリラックスタイム。", type: "routine", done: false, chime: true },
     { time: "23:50", title: "就寝 🌙", detail: "夜更かし厳禁・健康のための絶対死守ライン！", type: "routine", done: false, chime: true }
 ];
 const MEAL_GREETING = { sender: 'nekosuke', text: '今日の夕飯、何にするニャ？食材や気分を教えてくれたら一緒に考えるニャ🐾' };
@@ -789,6 +854,11 @@ function applyProposedSchedule(buttonEl, jsonStr) {
 }
 
 /* ============ チャットタブ（予定相談） ============ */
+// 予定チャットの会話履歴(セッション内のみ・従来通りリロードでリセット)
+let scheduleMessages = [
+    { sender: 'nekosuke', text: 'Mihoさん、今日もお疲れ様ニャ！1日の段取りを一緒に育てるニャ🐾 予定の追加や変更があれば、いつでもここに話しかけてニャ〜！' }
+];
+
 function appendChatBubble(sender, text, isUser, rawJson) {
     const room = document.getElementById('chat-talk-room');
     const row = document.createElement('div');
@@ -812,43 +882,55 @@ function appendChatBubble(sender, text, isUser, rawJson) {
     room.scrollTop = room.scrollHeight;
 }
 
+// 会話履歴への記録も同時に行うラッパー(AIへの文脈渡しに使う)
+function appendChatBubbleLive(sender, text, isUser, rawJson) {
+    scheduleMessages.push({ sender: isUser ? 'user' : 'nekosuke', text: text });
+    appendChatBubble(sender, text, isUser, rawJson);
+}
+
 async function handleSend() {
     const input = document.getElementById('chat-input');
     const text = input.value.trim();
     if (!text) return;
     if (!API_KEY) { alert("APIキーが設定されていません。"); return; }
     input.value = ''; input.style.height = "auto";
-    appendChatBubble("ユーザー", text, true);
+    appendChatBubbleLive("ユーザー", text, true);
     document.getElementById('status').style.display = 'block';
+
+    // 直近の会話履歴を渡して、話の流れを踏まえた自然な受け答えができるようにする
+    const historyText = scheduleMessages.slice(-10).map(m => `${m.sender === 'user' ? 'ユーザー' : 'ネコ助'}: ${m.text}`).join('\n');
 
     const systemPrompt = `
     あなたはユーザーのスケジュール設計を助ける優秀なAIアシスタント「ネコ助」です。
     語尾には必ず「〜ニャ」「〜ニャ〜🐾」をつけて、おしゃべりしてください。
+    これまでの会話の流れを踏まえて、自然に受け答えしてください。
     【現在のタイムラインデータ】: ${JSON.stringify(currentEvents)}
-    形成したコメントの後に必ず『===DATA===』を挟んで最新のJSONデータを出力してください。
     【生成ルール】:
-    1. 午後は18:00まで基本的に自由時間のため12:00〜18:00の間はタイムラインを空けてください。
-    2. ベースルーティン[起床(07:00), お弁当(07:30), 朝食(08:00), 朝家事(09:05), ランチ(12:00), 夜家事調理(18:00), 夕食片付け(19:30), 入浴(22:00), 就寝(23:50)]は絶対削除禁止。
+    1. 予定の追加・削除・時刻変更など、タイムラインに具体的な変更を提案する時だけ、コメントの後に『===DATA===』を挟んで更新後の全予定JSONを出力してください。
+    2. 雑談・質問への返答・相談段階のやり取りなど、タイムラインを変更しない返答の場合は、JSONを出力せずコメントのみ返してください（===DATA===は付けないでください）。
+    3. 午後は18:00まで基本的に自由時間のため12:00〜18:00の間はタイムラインを空けてください。
+    4. ベースルーティン[起床(07:00), お弁当(07:30), 朝食(08:00), 朝家事(09:00), ランチ(12:00), 夜家事調理(18:00), 夕食片付け(19:30), 入浴(22:00), 就寝(23:50)]は絶対削除禁止。
     `;
 
     try {
-        const response = await fetch(`${GEMINI_ENDPOINT}?key=${API_KEY}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ contents: [{ parts: [{ text: systemPrompt + "\n\nユーザーの入力: " + text }] }] })
-        });
-        const data = await response.json();
-        const aiText = data.candidates[0].content.parts[0].text;
-        const parts = aiText.split('===DATA===');
-        if (parts.length === 2) {
-            let jsonText = parts[1].replace(/```json|```/g, '').trim();
-            appendChatBubble("ネコ助", parts[0].trim(), false, JSON.parse(jsonText));
+        const result = await callGeminiAPI(systemPrompt + "\n\n【これまでの会話】\n" + historyText + "\n\nユーザーの最新の入力: " + text, 4096);
+        if (!result.ok) {
+            appendChatBubbleLive("ネコ助", `ごめんニャ、エラーが発生したニャ……（${result.message}）`);
         } else {
-            appendChatBubble("ネコ助", "ごめんニャ、作戦をうまくまとめられなかったニャ。");
+            const parts = result.text.split('===DATA===');
+            if (parts.length === 2) {
+                const jsonText = extractJsonBlock(parts[1]);
+                try {
+                    const parsedJson = JSON.parse(jsonText);
+                    appendChatBubbleLive("ネコ助", parts[0].trim(), false, parsedJson);
+                } catch (parseErr) {
+                    console.error('予定JSONの解析に失敗しました:', parseErr, jsonText);
+                    appendChatBubbleLive("ネコ助", (parts[0].trim() || "うまくまとめられなかったニャ…") + "\n\n（反映用データの形式が崩れていたので、反映ボタンは出せなかったニャ。もう一度お願いしてほしいニャ🙏）");
+                }
+            } else {
+                appendChatBubbleLive("ネコ助", result.text.trim() || "……ちょっと考え中ニャ、もう一度話しかけてほしいニャ。");
+            }
         }
-    } catch (error) {
-        appendChatBubble("ネコ助", "エラーが発生しちゃったニャ……");
-        console.error(error);
     } finally {
         document.getElementById('status').style.display = 'none';
     }
@@ -920,27 +1002,27 @@ async function handleMealSend() {
     const historyText = mealMessages.slice(-10).map(m => `${m.sender === 'user' ? 'ユーザー' : 'ネコ助'}: ${m.text}`).join('\n');
 
     try {
-        const response = await fetch(`${GEMINI_ENDPOINT}?key=${API_KEY}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ contents: [{ parts: [{ text: MEAL_SYSTEM_PROMPT + "\n\n【これまでの会話】\n" + historyText + "\n\nユーザーの最新の入力: " + text }] }] })
-        });
-        const data = await response.json();
-        const aiText = data.candidates[0].content.parts[0].text;
-        const parts = aiText.split('===PLAN===');
-        if (parts.length === 2) {
-            let jsonText = parts[1].replace(/```json|```/g, '').trim();
-            const plan = JSON.parse(jsonText);
-            mealPlan = plan;
-            saveMealPlan();
-            appendMealBubbleLive('nekosuke', parts[0].trim(), false, plan);
-            switchMealView('plan');
+        const result = await callGeminiAPI(MEAL_SYSTEM_PROMPT + "\n\n【これまでの会話】\n" + historyText + "\n\nユーザーの最新の入力: " + text, 2048);
+        if (!result.ok) {
+            appendMealBubbleLive('nekosuke', `ごめんニャ、エラーが発生したニャ……（${result.message}）`, false, null);
         } else {
-            appendMealBubbleLive('nekosuke', aiText.trim(), false, null);
+            const parts = result.text.split('===PLAN===');
+            if (parts.length === 2) {
+                const jsonText = extractJsonBlock(parts[1]);
+                try {
+                    const plan = JSON.parse(jsonText);
+                    mealPlan = plan;
+                    saveMealPlan();
+                    appendMealBubbleLive('nekosuke', parts[0].trim(), false, plan);
+                    switchMealView('plan');
+                } catch (parseErr) {
+                    console.error('段取りJSONの解析に失敗しました:', parseErr, jsonText);
+                    appendMealBubbleLive('nekosuke', (parts[0].trim() || "うまくまとめられなかったニャ…") + "\n\n（段取りデータの形式が崩れていたので反映できなかったニャ。もう一度お願いしてほしいニャ🙏）", false, null);
+                }
+            } else {
+                appendMealBubbleLive('nekosuke', result.text.trim(), false, null);
+            }
         }
-    } catch (error) {
-        appendMealBubbleLive('nekosuke', "エラーが発生しちゃったニャ……", false, null);
-        console.error(error);
     } finally {
         document.getElementById('meal-status').style.display = 'none';
     }
@@ -1032,20 +1114,13 @@ async function generateDiary() {
     【今日の夕食メニュー】: ${todayMenu || '(なし)'}
     `;
 
-    try {
-        const response = await fetch(`${GEMINI_ENDPOINT}?key=${API_KEY}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-        });
-        const data = await response.json();
-        const bodyText = data.candidates[0].content.parts[0].text.trim();
-        const fullText = `${buildDiaryDateHeader()}\n\n${bodyText}`;
-        renderDiaryResult(fullText);
-    } catch (error) {
-        document.getElementById('diary-body').innerHTML = `<div class="diary-loading">エラーが発生しました。もう一度試してください。</div>`;
-        console.error(error);
+    const result = await callGeminiAPI(prompt, 1024);
+    if (!result.ok) {
+        document.getElementById('diary-body').innerHTML = `<div class="diary-loading">エラーが発生しました（${result.message}）。もう一度試してください。</div>`;
+        return;
     }
+    const fullText = `${buildDiaryDateHeader()}\n\n${result.text.trim()}`;
+    renderDiaryResult(fullText);
 }
 
 function renderDiaryResult(diaryText) {
