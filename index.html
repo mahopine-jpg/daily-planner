@@ -61,18 +61,42 @@ body {
 }
 .app-header h1 { font-size: 22px; font-weight: 700; color: var(--accent); margin: 0 0 4px 0; letter-spacing: 0.5px; }
 .app-header .date-str { font-size: 14px; font-weight: 600; color: #8e8cb2; margin: 0; }
-.diary-btn {
-    position: absolute; top: calc(env(safe-area-inset-top) + 14px); right: 14px;
-    background: #ffffff; border: 1px solid var(--border-color); width: 40px; height: 40px;
-    border-radius: 50%; font-size: 18px; display: flex; align-items: center; justify-content: center;
-    cursor: pointer; box-shadow: 0 3px 8px rgba(108,92,231,0.12);
+
+.header-menu-wrap {
+    position: absolute; top: calc(env(safe-area-inset-top) + 14px); left: 14px;
 }
 .nekosuke-face-btn {
-    position: absolute; top: calc(env(safe-area-inset-top) + 14px); left: 14px;
     background: #fff8ea; border: 1px solid var(--border-color); width: 40px; height: 40px;
     border-radius: 50%; font-size: 19px; display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 3px 8px rgba(108,92,231,0.12); transition: transform 0.2s;
+    box-shadow: 0 3px 8px rgba(108,92,231,0.12); transition: transform 0.2s; cursor: pointer;
 }
+.header-menu {
+    display: none; position: absolute; top: calc(100% + 8px); left: 0;
+    background: #ffffff; border: 1px solid var(--border-color); border-radius: 14px;
+    min-width: 190px; padding: 6px; box-shadow: 0 8px 22px rgba(0,0,0,0.14); z-index: 60;
+}
+.header-menu.open { display: block; }
+.header-menu-item {
+    display: block; width: 100%; text-align: left; background: none; border: none;
+    padding: 10px 12px; font-size: 14px; font-weight: 600; color: var(--text-main);
+    border-radius: 10px; cursor: pointer;
+}
+.header-menu-item:active { background: #f0edf7; }
+
+/* ===== 上部タブバー(本日の予定 / 献立＆調理) ===== */
+.top-tab-bar {
+    flex-shrink: 0; display: flex; gap: 8px; background: #ffffff;
+    padding: 8px 12px; border-bottom: 1px solid var(--border-color);
+}
+.top-tab-bar .tab-bar-btn {
+    flex: 1; background: #f5f4fa; border: none; border-radius: 12px;
+    padding: 9px 4px; cursor: pointer;
+    display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 6px;
+    color: var(--text-sub); font-size: 13px; font-weight: 700;
+}
+.top-tab-bar .tab-bar-btn .icon { font-size: 16px; opacity: 0.7; }
+.top-tab-bar .tab-bar-btn.active { background: var(--accent); color: #ffffff; }
+.top-tab-bar .tab-bar-btn.active .icon { opacity: 1; }
 
 /* ===== タブコンテンツエリア ===== */
 .tab-content-area { flex: 1; min-height: 0; position: relative; }
@@ -80,21 +104,18 @@ body {
     position: absolute; inset: 0; display: none; flex-direction: column; overflow: hidden;
 }
 .tab-panel.active { display: flex; }
-.scroll-area { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.scroll-area { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-bottom: env(safe-area-inset-bottom); }
 
-/* ===== タブバー ===== */
-.tab-bar {
-    flex-shrink: 0; display: flex; background: #ffffff; border-top: 1px solid var(--border-color);
-    padding-bottom: env(safe-area-inset-bottom);
+/* ===== 予定/献立タブ内の小さい切り替えトグル ===== */
+.header-toggle-wrap {
+    position: absolute; top: calc(env(safe-area-inset-top) + 14px); right: 14px;
 }
-.tab-bar-btn {
-    flex: 1; background: none; border: none; padding: 10px 4px 8px 4px; cursor: pointer;
-    display: flex; flex-direction: column; align-items: center; gap: 3px;
-    color: var(--text-sub); font-size: 11px; font-weight: 600;
+.mini-toggle { display: flex; background: #f5f4fa; border-radius: 14px; padding: 2px; gap: 2px; }
+.mini-toggle-btn {
+    width: 32px; height: 32px; border-radius: 12px; border: none; background: transparent;
+    font-size: 15px; display: flex; align-items: center; justify-content: center; cursor: pointer;
 }
-.tab-bar-btn .icon { font-size: 21px; opacity: 0.55; }
-.tab-bar-btn.active { color: var(--accent); }
-.tab-bar-btn.active .icon { opacity: 1; }
+.mini-toggle-btn.active { background: var(--accent); box-shadow: 0 2px 5px rgba(108,92,231,0.3); }
 
 /* ===== 予定表タブ：タイムライン ===== */
 .timeline-wrap { padding: 18px 16px 24px 16px; }
@@ -230,16 +251,9 @@ body {
 .chat-input:focus { background: #ffffff; border-color: var(--accent); }
 .send-btn { background: #6c5ce7; color: white; border: none; width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; }
 .send-btn svg { width: 16px; height: 16px; fill: white; }
-.key-reset { font-size: 10px; color: var(--text-sub); background: #ffffff; border: none; text-decoration: underline; text-align: center; display: block; padding: 4px 0 8px 0; cursor: pointer; flex-shrink: 0; }
 
 /* ===== 献立＆調理タブ ===== */
 .meal-panel-inner { display: flex; flex-direction: column; height: 100%; }
-.segment-control { flex-shrink: 0; display: flex; gap: 6px; padding: 10px 14px; background: #ffffff; border-bottom: 1px solid var(--border-color); }
-.segment-btn {
-    flex: 1; padding: 9px 4px; border-radius: 12px; border: 1px solid var(--border-color);
-    background: #f5f4fa; color: var(--text-sub); font-size: 13px; font-weight: 700; cursor: pointer;
-}
-.segment-btn.active { background: var(--accent); color: #ffffff; border-color: var(--accent); }
 .meal-view { display: none; flex-direction: column; flex: 1; min-height: 0; }
 .meal-view.active { display: flex; }
 .meal-plan-empty { padding: 40px 24px; text-align: center; color: var(--text-sub); font-size: 14px; line-height: 1.7; }
@@ -285,20 +299,39 @@ body {
 <div class="app-header">
     <h1>Daily Planner AI ✨</h1>
     <div id="current-date" class="date-str">Loading...</div>
-    <div id="nekosuke-face" class="nekosuke-face-btn" title="ネコ助のいまの気分">🐱</div>
-    <button class="diary-btn" onclick="openDiaryModal()" title="日記を書き出す">📔</button>
+    <div class="header-menu-wrap">
+        <button id="nekosuke-face" class="nekosuke-face-btn" onclick="toggleHeaderMenu(event)" title="メニュー" aria-label="メニュー">☰</button>
+        <div id="header-menu" class="header-menu">
+            <button class="header-menu-item" onclick="closeHeaderMenu(); openDiaryModal();">📔 日記を書き出す</button>
+            <button class="header-menu-item" onclick="closeHeaderMenu(); resetApiKey();">🔑 APIキー再設定</button>
+        </div>
+    </div>
+    <div class="header-toggle-wrap">
+        <div id="header-toggle-schedule" class="mini-toggle">
+            <button id="sched-seg-timeline-btn" class="mini-toggle-btn active" onclick="switchScheduleView('timeline')" title="タイムライン" aria-label="タイムライン">📅</button>
+            <button id="sched-seg-chat-btn" class="mini-toggle-btn" onclick="switchScheduleView('chat')" title="チャット" aria-label="チャット">💬</button>
+        </div>
+        <div id="header-toggle-meal" class="mini-toggle" style="display:none;">
+            <button id="seg-plan-btn" class="mini-toggle-btn" onclick="switchMealView('plan')" title="段取り" aria-label="段取り">🍳</button>
+            <button id="seg-chat-btn" class="mini-toggle-btn active" onclick="switchMealView('chat')" title="チャット" aria-label="チャット">💬</button>
+        </div>
+    </div>
+</div>
+
+<div class="top-tab-bar">
+    <button class="tab-bar-btn active" data-tab="tab-schedule" onclick="showTab('tab-schedule', this)">
+        <span class="icon">📅</span><span>本日の予定</span>
+    </button>
+    <button class="tab-bar-btn" data-tab="tab-meal" onclick="showTab('tab-meal', this)">
+        <span class="icon">🍳</span><span>献立＆調理</span>
+    </button>
 </div>
 
 <div class="tab-content-area">
 
-    <!-- 本日の予定タブ(タイムライン/チャットをセグメント切替) -->
+    <!-- 本日の予定タブ(タイムライン/チャットをヘッダー右上のトグルで切替) -->
     <div id="tab-schedule" class="tab-panel active">
         <div class="meal-panel-inner">
-            <div class="segment-control">
-                <button id="sched-seg-timeline-btn" class="segment-btn active" onclick="switchScheduleView('timeline')">📅 タイムライン</button>
-                <button id="sched-seg-chat-btn" class="segment-btn" onclick="switchScheduleView('chat')">💬 チャット</button>
-            </div>
-
             <div id="schedule-view-timeline" class="meal-view active">
                 <div class="scroll-area">
                     <div id="timeline" class="timeline-wrap"></div>
@@ -322,7 +355,6 @@ body {
                         <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
                     </button>
                 </div>
-                <button class="key-reset" onclick="resetApiKey()">APIキー再設定</button>
             </div>
         </div>
     </div>
@@ -330,11 +362,6 @@ body {
     <!-- 献立＆調理タブ -->
     <div id="tab-meal" class="tab-panel">
         <div class="meal-panel-inner">
-            <div class="segment-control">
-                <button id="seg-chat-btn" class="segment-btn active" onclick="switchMealView('chat')">💬 チャット</button>
-                <button id="seg-plan-btn" class="segment-btn" onclick="switchMealView('plan')">🍳 段取り</button>
-            </div>
-
             <div id="meal-view-chat" class="meal-view active">
                 <div id="meal-status" class="status-indicator" style="display:none;">🎀 ネコ助が段取りを考え中ニャ...</div>
                 <div id="meal-chat-talk-room" class="chat-talk-room"></div>
@@ -354,15 +381,6 @@ body {
         </div>
     </div>
 
-</div>
-
-<div class="tab-bar">
-    <button class="tab-bar-btn active" data-tab="tab-schedule" onclick="showTab('tab-schedule', this)">
-        <span class="icon">📅</span><span>本日の予定</span>
-    </button>
-    <button class="tab-bar-btn" data-tab="tab-meal" onclick="showTab('tab-meal', this)">
-        <span class="icon">🍳</span><span>献立＆調理</span>
-    </button>
 </div>
 
 </div><!-- /#app-shell -->
@@ -597,12 +615,30 @@ document.addEventListener("click", () => {
     } catch (e) {}
 }, { once: true });
 
+/* ============ ヘッダーメニュー(日記・APIキー再設定) ============ */
+function toggleHeaderMenu(e) {
+    if (e) e.stopPropagation();
+    document.getElementById('header-menu').classList.toggle('open');
+}
+function closeHeaderMenu() {
+    document.getElementById('header-menu').classList.remove('open');
+}
+document.addEventListener('click', (e) => {
+    const menu = document.getElementById('header-menu');
+    const trigger = document.getElementById('nekosuke-face');
+    if (menu && menu.classList.contains('open') && !menu.contains(e.target) && e.target !== trigger) {
+        menu.classList.remove('open');
+    }
+});
+
 /* ============ タブ切り替え ============ */
 function showTab(tabId, btnEl) {
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
     document.getElementById(tabId).classList.add('active');
     document.querySelectorAll('.tab-bar-btn').forEach(b => b.classList.remove('active'));
     btnEl.classList.add('active');
+    document.getElementById('header-toggle-schedule').style.display = (tabId === 'tab-schedule') ? 'flex' : 'none';
+    document.getElementById('header-toggle-meal').style.display = (tabId === 'tab-meal') ? 'flex' : 'none';
 }
 
 let scheduleTabView = 'timeline';
@@ -662,25 +698,6 @@ function buildGapTip(diffMin, nextEv, curEvDone) {
         return { face: '🙀', text: `そろそろ${nextTitle}の準備をぼちぼちするニャ` };
     }
     return null;
-}
-// ヘッダー常駐フェイス: 時間帯や就寝タスクの近さで表情が変わる
-function getNekosukeFace(now, events) {
-    const nowMin = now.getHours() * 60 + now.getMinutes();
-    const bedtime = events.find(e => e.title.includes('就寝'));
-    if (bedtime && !bedtime.done) {
-        const bedMin = timeToMinutes(bedtime.time);
-        if (nowMin >= bedMin - 15 && nowMin < bedMin + 30) return '😾';
-    }
-    const h = now.getHours();
-    if (h < 6) return '😴';
-    if (h < 10) return '😪';
-    if (h < 17) return '🐱';
-    if (h < 22) return '😋';
-    return '😼';
-}
-function updateNekosukeFace() {
-    const el = document.getElementById('nekosuke-face');
-    if (el) el.textContent = getNekosukeFace(new Date(), currentEvents);
 }
 
 /* ============ 予定表タブ：タイムライン描画 ============ */
@@ -845,7 +862,6 @@ function startTimePatrol() {
             const shouldRing = currentEvents.some(ev => ev.chime && !ev.done && ev.time === currentStr);
             if (shouldRing) playChimeSound();
             renderTimeline(); // 現在時刻インジケーターの位置を更新
-            updateNekosukeFace();
         }
     }, 1000);
 }
@@ -1216,7 +1232,6 @@ initApp();
 updateDateDisplay();
 renderTimeline();
 renderMealChatRoom();
-updateNekosukeFace();
 startTimePatrol();
 
 </script>
