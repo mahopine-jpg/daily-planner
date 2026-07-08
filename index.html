@@ -48,6 +48,7 @@ body {
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    position: relative;
 }
 
 /* ===== ヘッダー ===== */
@@ -81,20 +82,20 @@ body {
 }
 .header-menu-item:active { background: #f0edf7; }
 
-/* ===== 上部タブバー(本日の予定 / 献立＆調理) ===== */
-.top-tab-bar {
+/* ===== 下部固定タブバー(本日の予定 / 献立＆調理) ===== */
+.bottom-tab-bar {
     flex-shrink: 0; display: flex; gap: 8px; background: #ffffff;
-    padding: 8px 12px; border-bottom: 1px solid var(--border-color);
+    padding: 8px 12px calc(8px + env(safe-area-inset-bottom)) 12px; border-top: 1px solid var(--border-color);
 }
-.top-tab-bar .tab-bar-btn {
+.bottom-tab-bar .tab-bar-btn {
     flex: 1; background: #f5f4fa; border: none; border-radius: 12px;
     padding: 9px 4px; cursor: pointer;
     display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 6px;
     color: var(--text-sub); font-size: 13px; font-weight: 700;
 }
-.top-tab-bar .tab-bar-btn .icon { font-size: 16px; opacity: 0.7; }
-.top-tab-bar .tab-bar-btn.active { background: var(--accent); color: #ffffff; }
-.top-tab-bar .tab-bar-btn.active .icon { opacity: 1; }
+.bottom-tab-bar .tab-bar-btn .icon { font-size: 16px; opacity: 0.7; }
+.bottom-tab-bar .tab-bar-btn.active { background: var(--accent); color: #ffffff; }
+.bottom-tab-bar .tab-bar-btn.active .icon { opacity: 1; }
 
 /* ===== タブコンテンツエリア ===== */
 .tab-content-area { flex: 1; min-height: 0; position: relative; }
@@ -102,27 +103,32 @@ body {
     position: absolute; inset: 0; display: none; flex-direction: column; overflow: hidden;
 }
 .tab-panel.active { display: flex; }
-.scroll-area { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-bottom: env(safe-area-inset-bottom); }
+.scroll-area { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-bottom: calc(90px + env(safe-area-inset-bottom)); }
 
-/* ===== 予定/献立タブ内の小さい切り替えトグル(タブバーの下の専用行に配置) ===== */
-.sub-toggle-row {
-    flex-shrink: 0; display: flex; justify-content: flex-end; align-items: center;
-    background: #ffffff; padding: 6px 12px; border-bottom: 1px solid var(--border-color);
+/* ===== チャットFAB(予定タブでは日付セレクター、献立タブでは全体を覆う形で右下に浮く) =====
+   タップで「今開いているタブに応じたチャット」を開閉する。中身自体はまだ従来の
+   タブ切替方式(switchScheduleView/switchMealView)を流用しており、半モーダル化は次フェーズで行う。 */
+.chat-fab {
+    position: absolute; right: 16px; bottom: calc(64px + env(safe-area-inset-bottom) + 14px);
+    width: 52px; height: 52px; border-radius: 50%; background: var(--accent); border: none;
+    color: #ffffff; font-size: 22px; display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 12px rgba(108,92,231,0.35); cursor: pointer; z-index: 40;
 }
-.mini-toggle { display: flex; background: #f5f4fa; border-radius: 14px; padding: 2px; gap: 2px; }
-.mini-toggle-btn {
-    width: 32px; height: 32px; border-radius: 12px; border: none; background: transparent;
-    font-size: 15px; display: flex; align-items: center; justify-content: center; cursor: pointer;
-}
-.mini-toggle-btn.active { background: var(--accent); box-shadow: 0 2px 5px rgba(108,92,231,0.3); }
 
-/* ===== 予定表タブ：今日/明日の下書き切り替え ===== */
-.day-toggle-row { flex-shrink: 0; display: flex; gap: 8px; padding: 10px 16px 0 16px; background: var(--bg-color); }
-.day-toggle-btn {
-    flex: 1; background: #eceaf7; border: none; border-radius: 12px; padding: 8px 4px;
-    font-size: 12px; font-weight: 700; color: var(--text-sub); cursor: pointer;
+/* ===== 予定表タブ：今日/明日の日付セレクター(色を使わないプレーン表示) ===== */
+.day-selector-row {
+    flex-shrink: 0; display: flex; align-items: center; justify-content: center; gap: 16px;
+    padding: 10px 16px 8px 16px; background: var(--bg-color);
 }
-.day-toggle-btn.active { background: var(--accent); color: #ffffff; }
+.day-selector-item {
+    background: none; border: none; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 2px 6px;
+}
+.day-selector-date { font-size: 13px; font-weight: 600; color: #b4b2c8; }
+.day-selector-label { font-size: 10px; font-weight: 600; color: #b4b2c8; }
+.day-selector-item.active .day-selector-date { color: var(--text-main); font-weight: 700; }
+.day-selector-item.active .day-selector-label { color: var(--accent); }
+.day-selector-divider { color: #d8d6ee; font-size: 13px; }
 .day-mode-banner { background: #fff3d6; color: #b8860b; }
 
 /* ===== 予定表タブ：タイムライン ===== */
@@ -369,34 +375,21 @@ body {
     </div>
 </div>
 
-<div class="top-tab-bar">
-    <button class="tab-bar-btn active" data-tab="tab-schedule" onclick="showTab('tab-schedule', this)">
-        <span class="icon">📅</span><span>本日の予定</span>
-    </button>
-    <button class="tab-bar-btn" data-tab="tab-meal" onclick="showTab('tab-meal', this)">
-        <span class="icon">🍳</span><span>献立＆調理</span>
-    </button>
-</div>
-
-<div class="sub-toggle-row">
-    <div id="header-toggle-schedule" class="mini-toggle">
-        <button id="sched-seg-timeline-btn" class="mini-toggle-btn active" onclick="switchScheduleView('timeline')" title="タイムライン" aria-label="タイムライン">📅</button>
-        <button id="sched-seg-chat-btn" class="mini-toggle-btn" onclick="switchScheduleView('chat')" title="チャット" aria-label="チャット">💬</button>
-    </div>
-    <div id="header-toggle-meal" class="mini-toggle" style="display:none;">
-        <button id="seg-plan-btn" class="mini-toggle-btn" onclick="switchMealView('plan')" title="段取り" aria-label="段取り">🍳</button>
-        <button id="seg-chat-btn" class="mini-toggle-btn active" onclick="switchMealView('chat')" title="チャット" aria-label="チャット">💬</button>
-    </div>
-</div>
-
 <div class="tab-content-area">
 
     <!-- 本日の予定タブ(タイムライン/チャットをヘッダー右上のトグルで切替) -->
     <div id="tab-schedule" class="tab-panel active">
         <div class="meal-panel-inner">
-            <div class="day-toggle-row">
-                <button id="day-toggle-today-btn" class="day-toggle-btn active" onclick="switchDayMode('today')">📅 今日</button>
-                <button id="day-toggle-tomorrow-btn" class="day-toggle-btn" onclick="switchDayMode('tomorrow')">🌙 明日の下書き</button>
+            <div class="day-selector-row">
+                <button id="day-toggle-today-btn" class="day-selector-item active" onclick="switchDayMode('today')">
+                    <span id="day-selector-today-date" class="day-selector-date">今日</span>
+                    <span class="day-selector-label">今日</span>
+                </button>
+                <span class="day-selector-divider">|</span>
+                <button id="day-toggle-tomorrow-btn" class="day-selector-item" onclick="switchDayMode('tomorrow')">
+                    <span id="day-selector-tomorrow-date" class="day-selector-date">明日</span>
+                    <span class="day-selector-label">明日の下書き</span>
+                </button>
             </div>
             <div id="schedule-view-timeline" class="meal-view active">
                 <div id="day-mode-banner-timeline" class="status-indicator day-mode-banner" style="display:none;">🌙 「明日の下書き」を表示中ニャ。日付が変わると自動で今日の予定になるニャ</div>
@@ -449,6 +442,17 @@ body {
         </div>
     </div>
 
+</div>
+
+<button id="chat-fab" class="chat-fab" onclick="toggleChatFab()" aria-label="チャットを開く">💬</button>
+
+<div class="bottom-tab-bar">
+    <button class="tab-bar-btn active" data-tab="tab-schedule" onclick="showTab('tab-schedule', this)">
+        <span class="icon">📅</span><span>本日の予定</span>
+    </button>
+    <button class="tab-bar-btn" data-tab="tab-meal" onclick="showTab('tab-meal', this)">
+        <span class="icon">🍳</span><span>献立＆調理</span>
+    </button>
 </div>
 
 </div><!-- /#app-shell -->
@@ -862,8 +866,7 @@ function showTab(tabId, btnEl) {
     document.getElementById(tabId).classList.add('active');
     document.querySelectorAll('.tab-bar-btn').forEach(b => b.classList.remove('active'));
     btnEl.classList.add('active');
-    document.getElementById('header-toggle-schedule').style.display = (tabId === 'tab-schedule') ? 'flex' : 'none';
-    document.getElementById('header-toggle-meal').style.display = (tabId === 'tab-meal') ? 'flex' : 'none';
+    updateChatFabIcon();
 }
 
 let scheduleTabView = 'timeline';
@@ -871,13 +874,12 @@ function switchScheduleView(view) {
     scheduleTabView = view;
     document.getElementById('schedule-view-timeline').classList.toggle('active', view === 'timeline');
     document.getElementById('schedule-view-chat').classList.toggle('active', view === 'chat');
-    document.getElementById('sched-seg-timeline-btn').classList.toggle('active', view === 'timeline');
-    document.getElementById('sched-seg-chat-btn').classList.toggle('active', view === 'chat');
     if (view === 'timeline') renderTimeline();
     if (view === 'chat') {
         const room = document.getElementById('chat-talk-room');
         room.scrollTop = room.scrollHeight;
     }
+    updateChatFabIcon();
 }
 
 // 予定タブの表示対象を「今日」⇄「明日の下書き」で切り替える。
@@ -891,6 +893,43 @@ function switchDayMode(mode) {
     document.getElementById('day-mode-banner-timeline').style.display = isTomorrow ? 'block' : 'none';
     document.getElementById('day-mode-banner-chat').style.display = isTomorrow ? 'block' : 'none';
     if (scheduleTabView === 'timeline') renderTimeline();
+}
+
+// 日付セレクターの「7月8日(水)」のような表示を、実際の日付から計算してセットする
+function updateDaySelectorDates() {
+    const now = new Date();
+    const tomorrow = new Date(now);
+    tomorrow.setDate(now.getDate() + 1);
+    const fmt = (d) => {
+        const w = ['日', '月', '火', '水', '木', '金', '土'][d.getDay()];
+        return `${d.getMonth() + 1}月${d.getDate()}日(${w})`;
+    };
+    const todayEl = document.getElementById('day-selector-today-date');
+    const tomorrowEl = document.getElementById('day-selector-tomorrow-date');
+    if (todayEl) todayEl.textContent = fmt(now);
+    if (tomorrowEl) tomorrowEl.textContent = fmt(tomorrow);
+}
+
+// 右下のチャットFAB。「今どのタブ・どの表示中か」に応じて、開くチャットの中身と
+// アイコン(💬=開く/📋or🍳=閉じて一覧に戻る)を自動で切り替える。
+// 中身はまだ従来のタブ切替方式(switchScheduleView/switchMealView)を流用しており、
+// 半モーダル化(見た目を画面下からせり上がる形にする)は次フェーズで対応する。
+function toggleChatFab() {
+    const activeTabId = document.querySelector('.tab-panel.active').id;
+    if (activeTabId === 'tab-schedule') {
+        switchScheduleView(scheduleTabView === 'chat' ? 'timeline' : 'chat');
+    } else {
+        switchMealView(mealTabView === 'chat' ? 'plan' : 'chat');
+    }
+}
+function updateChatFabIcon() {
+    const activeTabId = document.querySelector('.tab-panel.active').id;
+    const fab = document.getElementById('chat-fab');
+    if (!fab) return;
+    const isChatOpen = (activeTabId === 'tab-schedule' && scheduleTabView === 'chat') ||
+                        (activeTabId === 'tab-meal' && mealTabView === 'chat');
+    fab.textContent = isChatOpen ? (activeTabId === 'tab-schedule' ? '📅' : '🍳') : '💬';
+    fab.setAttribute('aria-label', isChatOpen ? '一覧に戻る' : 'チャットを開く');
 }
 
 const NEKOSUKE_TIPS = [
@@ -1311,13 +1350,12 @@ function switchMealView(view) {
     mealTabView = view;
     document.getElementById('meal-view-chat').classList.toggle('active', view === 'chat');
     document.getElementById('meal-view-plan').classList.toggle('active', view === 'plan');
-    document.getElementById('seg-chat-btn').classList.toggle('active', view === 'chat');
-    document.getElementById('seg-plan-btn').classList.toggle('active', view === 'plan');
     if (view === 'plan') renderMealPlan();
     if (view === 'chat') {
         const room = document.getElementById('meal-chat-talk-room');
         room.scrollTop = room.scrollHeight;
     }
+    updateChatFabIcon();
 }
 
 function renderMealChatRoom() {
@@ -1745,8 +1783,10 @@ function applyManualImport(target, pastedText) {
 initApp();
 requestTimestamps = loadRequestTimestamps(); // PWAのバックグラウンド復帰後も直近の送信状況を復元
 updateDateDisplay();
+updateDaySelectorDates();
 renderTimeline();
 renderMealChatRoom();
+updateChatFabIcon();
 startTimePatrol();
 
 </script>
