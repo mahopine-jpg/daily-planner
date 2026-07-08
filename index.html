@@ -250,6 +250,7 @@ body {
 }
 .chat-input:focus { background: #ffffff; border-color: var(--accent); }
 .send-btn { background: #6c5ce7; color: white; border: none; width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; }
+.send-btn:disabled { background: #b8b3e8; cursor: default; }
 .send-btn svg { width: 16px; height: 16px; fill: white; }
 
 /* ===== 献立＆調理タブ ===== */
@@ -351,7 +352,7 @@ body {
                 </div>
                 <div class="input-bar-wrapper">
                     <textarea id="chat-input" class="chat-input" rows="1" placeholder="予定を入力ニャ..." oninput="autoGrow(this)"></textarea>
-                    <button class="send-btn" onclick="handleSend()">
+                    <button id="schedule-send-btn" class="send-btn" onclick="handleSend()">
                         <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
                     </button>
                 </div>
@@ -367,7 +368,7 @@ body {
                 <div id="meal-chat-talk-room" class="chat-talk-room"></div>
                 <div class="input-bar-wrapper">
                     <textarea id="meal-chat-input" class="chat-input" rows="1" placeholder="今日の夕飯の相談をどうぞニャ..." oninput="autoGrow(this)"></textarea>
-                    <button class="send-btn" onclick="handleMealSend()">
+                    <button id="meal-send-btn" class="send-btn" onclick="handleMealSend()">
                         <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
                     </button>
                 </div>
@@ -412,22 +413,64 @@ const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models
 
 function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
 
-// 「high demand」「overloaded」「unavailable」やHTTP 429/503など、
-// 一時的な混雑が原因とわかるエラーだけ自動でリトライする(それ以外は即座にエラーを返す)
+// Googleの無料枠(1分あたり20リクエスト)に実際に達する前に、アプリ側で自主的にブレーキをかける。
+// 直近60秒間の送信回数を記録し、15回に達したら実際のfetchを送らずに待機を促す。
+// これにより「気づいたら20リクエストに達していた」という事態そのものを避ける。
+const REQUEST_WINDOW_MS = 60000;
+const SAFE_REQUEST_LIMIT = 15;
+let requestTimestamps = [];
+
+function pruneOldTimestamps() {
+    const now = Date.now();
+    requestTimestamps = requestTimestamps.filter(t => now - t < REQUEST_WINDOW_MS);
+}
+function secondsUntilNextSlot() {
+    pruneOldTimestamps();
+    if (requestTimestamps.length === 0) return 0;
+    return Math.max(1, Math.ceil((REQUEST_WINDOW_MS - (Date.now() - requestTimestamps[0])) / 1000));
+}
+
+// 「high demand」「overloaded」やHTTP 503など、
+// "一時的なサーバー側の混雑"だとわかるものだけ自動でリトライする。
+// 429(クォータ超過)はここに含めない。無料枠の上限に達している状態なので、
+// 即座に再送してもほぼ確実に失敗し、かえって残りわずかな枠を無駄に消費して
+// 次のリクエストまで巻き込んでエラーにしてしまうため。
 function isRetryableError(status, msg) {
-    if (status === 429 || status === 503) return true;
-    return /high demand|overloaded|unavailable|temporarily|rate limit/i.test(msg || '');
+    if (status === 503) return true;
+    return /high demand|overloaded|service unavailable|temporarily unavailable/i.test(msg || '');
+}
+
+// 429(クォータ超過)のメッセージは英語の技術的な文言が長いので、
+// 「あと何秒待てばいいか」だけを抜き出して分かりやすい日本語にする。
+function buildQuotaMessage(rawMsg) {
+    const waitMatch = (rawMsg || '').match(/retry in ([\d.]+)s/i);
+    const waitSec = waitMatch ? Math.ceil(parseFloat(waitMatch[1])) : null;
+    return waitSec
+        ? `Geminiの無料枠の利用上限(1分あたりのリクエスト数)に達したニャ。${waitSec}秒ほど待ってからもう一度送ってほしいニャ🙏`
+        : `Geminiの無料枠の利用上限に達したニャ。1分ほど待ってからもう一度送ってほしいニャ🙏`;
 }
 
 /* Gemini API呼び出しの共通ヘルパー。
    HTTPエラー・安全フィルタによるブロック・candidates欠落などを個別に検知して
    原因がわかるメッセージを返す(以前は全部「エラーが発生しちゃった」に握りつぶされていた)。
    maxOutputTokensも明示的に指定し、応答が長くなりがちな予定チャットでの途中切れを防ぐ。
-   一時的な混雑エラーは最大2回まで自動リトライする。 */
+   一時的な混雑エラーは最大1回まで自動リトライする。
+   さらに、実際にGoogle側の上限に達する前に自主的に送信をセーブする(SAFE_REQUEST_LIMIT)。 */
 async function callGeminiAPI(promptText, maxOutputTokens, attempt) {
     attempt = attempt || 1;
-    const MAX_ATTEMPTS = 3;
+    const MAX_ATTEMPTS = 2;
+
+    if (attempt === 1) {
+        pruneOldTimestamps();
+        if (requestTimestamps.length >= SAFE_REQUEST_LIMIT) {
+            const waitSec = secondsUntilNextSlot();
+            console.warn(`自主レート制限により送信をスキップしました(直近1分で${requestTimestamps.length}回)`);
+            return { ok: false, message: `直近1分間に送りすぎているニャ。無料枠を守るために${waitSec}秒ほど待ってから送ってほしいニャ🐾` };
+        }
+    }
+
     try {
+        requestTimestamps.push(Date.now());
         const response = await fetch(`${GEMINI_ENDPOINT}?key=${API_KEY}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -443,6 +486,10 @@ async function callGeminiAPI(promptText, maxOutputTokens, attempt) {
                 const errData = await response.json();
                 if (errData && errData.error && errData.error.message) msg = errData.error.message;
             } catch (e) {}
+            if (response.status === 429) {
+                console.error('Gemini APIクォータ超過:', msg);
+                return { ok: false, message: buildQuotaMessage(msg) };
+            }
             if (isRetryableError(response.status, msg) && attempt < MAX_ATTEMPTS) {
                 console.warn(`Gemini APIが混雑中のため再試行します(${attempt}回目): ${msg}`);
                 await sleep(attempt * 900);
@@ -959,12 +1006,15 @@ function appendChatBubbleLive(sender, text, isUser, rawJson) {
 
 async function handleSend() {
     const input = document.getElementById('chat-input');
+    const sendBtn = document.getElementById('schedule-send-btn');
+    if (sendBtn && sendBtn.disabled) return; // 送信中の連打による多重送信を防止
     const text = input.value.trim();
     if (!text) return;
     if (!API_KEY) { alert("APIキーが設定されていません。"); return; }
     input.value = ''; input.style.height = "auto";
     appendChatBubbleLive("ユーザー", text, true);
     document.getElementById('status').style.display = 'block';
+    if (sendBtn) sendBtn.disabled = true;
 
     // 直近の会話履歴を渡して、話の流れを踏まえた自然な受け答えができるようにする
     const historyText = scheduleMessages.slice(-10).map(m => `${m.sender === 'user' ? 'ユーザー' : 'ネコ助'}: ${m.text}`).join('\n');
@@ -1002,6 +1052,7 @@ async function handleSend() {
         }
     } finally {
         document.getElementById('status').style.display = 'none';
+        if (sendBtn) sendBtn.disabled = false;
     }
 }
 
@@ -1060,12 +1111,15 @@ const MEAL_SYSTEM_PROMPT = `
 
 async function handleMealSend() {
     const input = document.getElementById('meal-chat-input');
+    const sendBtn = document.getElementById('meal-send-btn');
+    if (sendBtn && sendBtn.disabled) return; // 送信中の連打による多重送信を防止
     const text = input.value.trim();
     if (!text) return;
     if (!API_KEY) { alert("APIキーが設定されていません。"); return; }
     input.value = ''; input.style.height = "auto";
     appendMealBubbleLive('user', text, true);
     document.getElementById('meal-status').style.display = 'block';
+    if (sendBtn) sendBtn.disabled = true;
 
     // 直近の会話履歴のみ渡す(予定表データは一切含めない)
     const historyText = mealMessages.slice(-10).map(m => `${m.sender === 'user' ? 'ユーザー' : 'ネコ助'}: ${m.text}`).join('\n');
@@ -1094,6 +1148,7 @@ async function handleMealSend() {
         }
     } finally {
         document.getElementById('meal-status').style.display = 'none';
+        if (sendBtn) sendBtn.disabled = false;
     }
 }
 
