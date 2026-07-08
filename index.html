@@ -28,6 +28,12 @@
 
 html, body { height: 100%; background: var(--bg-color); }
 
+.safe-area-bottom-fill {
+    position: fixed; left: 50%; bottom: 0; transform: translateX(-50%);
+    width: 100%; max-width: 480px; height: env(safe-area-inset-bottom);
+    background: #ffffff; z-index: 70; pointer-events: none;
+}
+
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     color: var(--text-main);
@@ -54,13 +60,14 @@ body {
 /* ===== ヘッダー ===== */
 .app-header {
     flex-shrink: 0;
-    padding: calc(env(safe-area-inset-top) + 12px) 12px 8px 12px;
-    background: var(--bg-color);
+    padding: calc(env(safe-area-inset-top) + 12px) 12px 10px 12px;
+    background: #e6e3f5;
+    border-bottom: 1px solid var(--border-color);
 }
 .header-top-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .header-center { flex: 1; min-width: 0; text-align: center; }
-.header-center h1 { font-size: 15px; font-weight: 700; color: var(--accent); margin: 0; letter-spacing: 0.3px; }
-.header-center .date-str { font-size: 12px; font-weight: 600; color: #8e8cb2; margin: 2px 0 0 0; }
+.header-center h1 { font-size: 22px; font-weight: 700; color: #6b6690; margin: 0; letter-spacing: 0.3px; }
+.header-center .date-str { font-size: 12px; font-weight: 600; color: #8e8cb2; margin: 3px 0 0 0; }
 .header-spacer { width: 40px; flex-shrink: 0; }
 
 .header-menu-wrap { position: relative; flex-shrink: 0; }
@@ -158,10 +165,8 @@ body {
     background: none; border: none; cursor: pointer;
     display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 2px 6px;
 }
-.day-selector-date { font-size: 13px; font-weight: 600; color: #b4b2c8; }
-.day-selector-label { font-size: 10px; font-weight: 600; color: #b4b2c8; }
-.day-selector-item.active .day-selector-date { color: var(--text-main); font-weight: 700; }
-.day-selector-item.active .day-selector-label { color: var(--accent); }
+.day-selector-label { font-size: 13px; font-weight: 600; color: #b4b2c8; }
+.day-selector-item.active .day-selector-label { color: var(--text-main); font-weight: 700; }
 .day-selector-divider { color: #d8d6ee; font-size: 13px; }
 .day-mode-banner { background: #fff3d6; color: #b8860b; }
 
@@ -347,7 +352,10 @@ body {
     display: flex; align-items: center; gap: 10px; background: #faf9ff; border: 1px solid var(--border-color);
     border-radius: 12px; padding: 9px 10px; cursor: pointer;
 }
-.memo-row .memo-priority-icon { font-size: 15px; flex-shrink: 0; }
+.memo-row .memo-priority-icon {
+    font-size: 13px; font-weight: 700; color: var(--text-sub); flex-shrink: 0;
+    min-width: 46px; text-align: center; background: #eeecf8; border-radius: 8px; padding: 3px 6px;
+}
 .memo-row .memo-name { flex-grow: 1; font-size: 14px; font-weight: 600; color: var(--text-main); word-break: break-all; }
 .memo-row .memo-remove-btn { background: none; border: none; color: #e53e3e; font-size: 13px; font-weight: bold; padding: 4px; opacity: 0.5; flex-shrink: 0; }
 .memo-empty { text-align: center; color: var(--text-sub); font-size: 13px; padding: 20px 8px; }
@@ -388,6 +396,10 @@ body {
 </style>
 </head>
 <body>
+<!-- ホームインジケーター周りのセーフエリアだけを確実に白く塗る。
+     position:fixedでビューポート基準に配置するため、#app-shellの高さ計算(--app-height)の
+     タイミングに左右されず、常にタブバーと同じ白で塗られる。 -->
+<div class="safe-area-bottom-fill"></div>
 <div id="app-shell">
 
 <div class="app-header">
@@ -416,13 +428,11 @@ body {
         <div class="meal-panel-inner">
             <div class="day-selector-row">
                 <button id="day-toggle-today-btn" class="day-selector-item active" onclick="switchDayMode('today')">
-                    <span id="day-selector-today-date" class="day-selector-date">今日</span>
                     <span class="day-selector-label">今日</span>
                 </button>
                 <span class="day-selector-divider">|</span>
                 <button id="day-toggle-tomorrow-btn" class="day-selector-item" onclick="switchDayMode('tomorrow')">
-                    <span id="day-selector-tomorrow-date" class="day-selector-date">明日</span>
-                    <span class="day-selector-label">明日の下書き</span>
+                    <span class="day-selector-label">明日</span>
                 </button>
             </div>
             <div id="schedule-view-timeline" class="chat-overlay-body" style="display:flex;">
@@ -489,7 +499,15 @@ body {
 </div>
 
 
-<button id="chat-fab" class="chat-fab" onclick="toggleChatFab()" aria-label="チャットを開く">💬</button>
+<button id="chat-fab" class="chat-fab" onclick="toggleChatFab()" aria-label="チャットを開く">
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h9A2.5 2.5 0 0 1 18 5.5v6A2.5 2.5 0 0 1 15.5 14H10l-4 3v-3H6.5A2.5 2.5 0 0 1 4 11.5v-6z" fill="#ffffff"/>
+        <circle cx="8" cy="8.3" r="1.1" fill="var(--accent)"/>
+        <circle cx="11.3" cy="8.3" r="1.1" fill="var(--accent)"/>
+        <circle cx="14.6" cy="8.3" r="1.1" fill="var(--accent)"/>
+        <path d="M19.3 2.2l0.7 1.9 1.9 0.7-1.9 0.7-0.7 1.9-0.7-1.9-1.9-0.7 1.9-0.7z" fill="#ffffff"/>
+    </svg>
+</button>
 
 <div class="bottom-tab-bar">
     <button class="tab-bar-btn active" data-tab="tab-schedule" onclick="showTab('tab-schedule', this)">
@@ -846,12 +864,16 @@ function autoGrow(element) {
 }
 
 /* iOS Safari ではアドレスバー等の増減で 100dvh がずれ、タブバー下に余白が出ることがあるため
-   実際のビューポート高さを都度 --app-height に反映する */
+   実際のビューポート高さを都度 --app-height に反映する。
+   ページ読み込み直後の1回目の計測はレイアウトがまだ確定しておらず不正確なことがあるため、
+   load後とrequestAnimationFrameでも再計測して精度を上げる。 */
 function setAppHeight() {
     const h = (window.visualViewport && window.visualViewport.height) ? window.visualViewport.height : window.innerHeight;
     document.documentElement.style.setProperty('--app-height', h + 'px');
 }
 setAppHeight();
+requestAnimationFrame(setAppHeight);
+window.addEventListener('load', setAppHeight);
 window.addEventListener('resize', setAppHeight);
 window.addEventListener('orientationchange', setAppHeight);
 if (window.visualViewport) {
@@ -928,21 +950,6 @@ function switchDayMode(mode) {
     renderTimeline(); // 予定タブは常にタイムライン表示のため無条件で再描画してよい
 }
 
-// 日付セレクターの「7月8日(水)」のような表示を、実際の日付から計算してセットする
-function updateDaySelectorDates() {
-    const now = new Date();
-    const tomorrow = new Date(now);
-    tomorrow.setDate(now.getDate() + 1);
-    const fmt = (d) => {
-        const w = ['日', '月', '火', '水', '木', '金', '土'][d.getDay()];
-        return `${d.getMonth() + 1}月${d.getDate()}日(${w})`;
-    };
-    const todayEl = document.getElementById('day-selector-today-date');
-    const tomorrowEl = document.getElementById('day-selector-tomorrow-date');
-    if (todayEl) todayEl.textContent = fmt(now);
-    if (tomorrowEl) tomorrowEl.textContent = fmt(tomorrow);
-}
-
 /* ============ 半モーダルチャットオーバーレイ ============
    予定タブ/献立タブ共通のチャットを、画面下からせり上がるオーバーレイとして開閉する。
    #app-shell自体が--app-height(visualViewport連動)で高さ管理されているため、
@@ -994,10 +1001,23 @@ function toggleChatFab() {
         openChatOverlay(context);
     }
 }
+const CHAT_FAB_ICON_SVG = `
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h9A2.5 2.5 0 0 1 18 5.5v6A2.5 2.5 0 0 1 15.5 14H10l-4 3v-3H6.5A2.5 2.5 0 0 1 4 11.5v-6z" fill="#ffffff"/>
+        <circle cx="8" cy="8.3" r="1.1" fill="var(--accent)"/>
+        <circle cx="11.3" cy="8.3" r="1.1" fill="var(--accent)"/>
+        <circle cx="14.6" cy="8.3" r="1.1" fill="var(--accent)"/>
+        <path d="M19.3 2.2l0.7 1.9 1.9 0.7-1.9 0.7-0.7 1.9-0.7-1.9-1.9-0.7 1.9-0.7z" fill="#ffffff"/>
+    </svg>`;
+const CHAT_FAB_ICON_CLOSE_SVG = `
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M5 5l14 14M19 5L5 19" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round"/>
+    </svg>`;
+
 function updateChatFabIcon() {
     const fab = document.getElementById('chat-fab');
     if (!fab) return;
-    fab.textContent = chatOverlayOpen ? '✕' : '💬';
+    fab.innerHTML = chatOverlayOpen ? CHAT_FAB_ICON_CLOSE_SVG : CHAT_FAB_ICON_SVG;
     fab.setAttribute('aria-label', chatOverlayOpen ? '閉じる' : 'チャットを開く');
     fab.style.transform = chatOverlayOpen ? 'scale(0.001)' : 'scale(1)';
 }
@@ -1679,10 +1699,10 @@ function priorityRank(p) {
     return 3;
 }
 function priorityIcon(p) {
-    if (p === 'high') return '🔴';
-    if (p === 'mid') return '🟡';
-    if (p === 'low') return '🟢';
-    return '⚪';
+    if (p === 'high') return '🔴 高';
+    if (p === 'mid') return '🟡 中';
+    if (p === 'low') return '🟢 低';
+    return '⚪ 未設定';
 }
 function renderMemoModal() {
     const body = document.getElementById('memo-body');
@@ -1701,7 +1721,7 @@ function renderMemoModal() {
     }
 
     body.innerHTML = `
-        <p style="font-size:12px;color:var(--text-sub);line-height:1.6;margin-top:0;">タップで優先度を切り替えできます（⚪→🔴→🟡→🟢→⚪）</p>
+        <p style="font-size:12px;color:var(--text-sub);line-height:1.6;margin-top:0;">タップで優先度を切り替えできます（未設定→高→中→低→未設定）</p>
         ${listHtml}
         <div class="memo-add-row">
             <input type="text" id="memo-add-input" class="memo-add-input" placeholder="食材名を入力...">
@@ -1842,7 +1862,6 @@ function applyManualImport(target, pastedText) {
 initApp();
 requestTimestamps = loadRequestTimestamps(); // PWAのバックグラウンド復帰後も直近の送信状況を復元
 updateDateDisplay();
-updateDaySelectorDates();
 renderTimeline();
 renderMealChatRoom();
 updateChatFabIcon();
