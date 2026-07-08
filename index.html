@@ -53,18 +53,16 @@ body {
 /* ===== ヘッダー ===== */
 .app-header {
     flex-shrink: 0;
-    text-align: center;
-    padding: calc(env(safe-area-inset-top) + 16px) 16px 12px 16px;
-    position: relative;
+    padding: calc(env(safe-area-inset-top) + 12px) 12px 8px 12px;
     background: var(--bg-color);
-    border-bottom: 1px solid var(--border-color);
 }
-.app-header h1 { font-size: 22px; font-weight: 700; color: var(--accent); margin: 0 0 4px 0; letter-spacing: 0.5px; }
-.app-header .date-str { font-size: 14px; font-weight: 600; color: #8e8cb2; margin: 0; }
+.header-top-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.header-center { flex: 1; min-width: 0; text-align: center; }
+.header-center h1 { font-size: 15px; font-weight: 700; color: var(--accent); margin: 0; letter-spacing: 0.3px; }
+.header-center .date-str { font-size: 12px; font-weight: 600; color: #8e8cb2; margin: 2px 0 0 0; }
+.header-spacer { width: 40px; flex-shrink: 0; }
 
-.header-menu-wrap {
-    position: absolute; top: calc(env(safe-area-inset-top) + 14px); left: 14px;
-}
+.header-menu-wrap { position: relative; flex-shrink: 0; }
 .nekosuke-face-btn {
     background: #fff8ea; border: 1px solid var(--border-color); width: 40px; height: 40px;
     border-radius: 50%; font-size: 19px; display: flex; align-items: center; justify-content: center;
@@ -106,9 +104,10 @@ body {
 .tab-panel.active { display: flex; }
 .scroll-area { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-bottom: env(safe-area-inset-bottom); }
 
-/* ===== 予定/献立タブ内の小さい切り替えトグル ===== */
-.header-toggle-wrap {
-    position: absolute; top: calc(env(safe-area-inset-top) + 14px); right: 14px;
+/* ===== 予定/献立タブ内の小さい切り替えトグル(タブバーの下の専用行に配置) ===== */
+.sub-toggle-row {
+    flex-shrink: 0; display: flex; justify-content: flex-end; align-items: center;
+    background: #ffffff; padding: 6px 12px; border-bottom: 1px solid var(--border-color);
 }
 .mini-toggle { display: flex; background: #f5f4fa; border-radius: 14px; padding: 2px; gap: 2px; }
 .mini-toggle-btn {
@@ -116,6 +115,15 @@ body {
     font-size: 15px; display: flex; align-items: center; justify-content: center; cursor: pointer;
 }
 .mini-toggle-btn.active { background: var(--accent); box-shadow: 0 2px 5px rgba(108,92,231,0.3); }
+
+/* ===== 予定表タブ：今日/明日の下書き切り替え ===== */
+.day-toggle-row { flex-shrink: 0; display: flex; gap: 8px; padding: 10px 16px 0 16px; background: var(--bg-color); }
+.day-toggle-btn {
+    flex: 1; background: #eceaf7; border: none; border-radius: 12px; padding: 8px 4px;
+    font-size: 12px; font-weight: 700; color: var(--text-sub); cursor: pointer;
+}
+.day-toggle-btn.active { background: var(--accent); color: #ffffff; }
+.day-mode-banner { background: #fff3d6; color: #b8860b; }
 
 /* ===== 予定表タブ：タイムライン ===== */
 .timeline-wrap { padding: 18px 16px 24px 16px; }
@@ -343,27 +351,21 @@ body {
 <div id="app-shell">
 
 <div class="app-header">
-    <h1>Daily Planner AI ✨</h1>
-    <div id="current-date" class="date-str">Loading...</div>
-    <div class="header-menu-wrap">
-        <button id="nekosuke-face" class="nekosuke-face-btn" onclick="toggleHeaderMenu(event)" title="メニュー" aria-label="メニュー">☰</button>
-        <div id="header-menu" class="header-menu">
-            <button class="header-menu-item" onclick="closeHeaderMenu(); openDiaryModal();">📔 日記を書き出す</button>
-            <button class="header-menu-item" onclick="closeHeaderMenu(); openMemoModal();">🥕 食材メモ</button>
-            <button class="header-menu-item" onclick="closeHeaderMenu(); openManualImportModal();">🆘 手動で作ってもらう</button>
-            <button class="header-menu-item" onclick="closeHeaderMenu(); resetApiKey();">🔑 APIキー再設定</button>
-
+    <div class="header-top-row">
+        <div class="header-menu-wrap">
+            <button id="nekosuke-face" class="nekosuke-face-btn" onclick="toggleHeaderMenu(event)" title="メニュー" aria-label="メニュー">☰</button>
+            <div id="header-menu" class="header-menu">
+                <button class="header-menu-item" onclick="closeHeaderMenu(); openDiaryModal();">📔 日記を書き出す</button>
+                <button class="header-menu-item" onclick="closeHeaderMenu(); openMemoModal();">🥕 食材メモ</button>
+                <button class="header-menu-item" onclick="closeHeaderMenu(); openManualImportModal();">🆘 手動で作ってもらう</button>
+                <button class="header-menu-item" onclick="closeHeaderMenu(); resetApiKey();">🔑 APIキー再設定</button>
+            </div>
         </div>
-    </div>
-    <div class="header-toggle-wrap">
-        <div id="header-toggle-schedule" class="mini-toggle">
-            <button id="sched-seg-timeline-btn" class="mini-toggle-btn active" onclick="switchScheduleView('timeline')" title="タイムライン" aria-label="タイムライン">📅</button>
-            <button id="sched-seg-chat-btn" class="mini-toggle-btn" onclick="switchScheduleView('chat')" title="チャット" aria-label="チャット">💬</button>
+        <div class="header-center">
+            <h1>Daily Planner AI ✨</h1>
+            <div id="current-date" class="date-str">Loading...</div>
         </div>
-        <div id="header-toggle-meal" class="mini-toggle" style="display:none;">
-            <button id="seg-plan-btn" class="mini-toggle-btn" onclick="switchMealView('plan')" title="段取り" aria-label="段取り">🍳</button>
-            <button id="seg-chat-btn" class="mini-toggle-btn active" onclick="switchMealView('chat')" title="チャット" aria-label="チャット">💬</button>
-        </div>
+        <div class="header-spacer"></div>
     </div>
 </div>
 
@@ -376,18 +378,35 @@ body {
     </button>
 </div>
 
+<div class="sub-toggle-row">
+    <div id="header-toggle-schedule" class="mini-toggle">
+        <button id="sched-seg-timeline-btn" class="mini-toggle-btn active" onclick="switchScheduleView('timeline')" title="タイムライン" aria-label="タイムライン">📅</button>
+        <button id="sched-seg-chat-btn" class="mini-toggle-btn" onclick="switchScheduleView('chat')" title="チャット" aria-label="チャット">💬</button>
+    </div>
+    <div id="header-toggle-meal" class="mini-toggle" style="display:none;">
+        <button id="seg-plan-btn" class="mini-toggle-btn" onclick="switchMealView('plan')" title="段取り" aria-label="段取り">🍳</button>
+        <button id="seg-chat-btn" class="mini-toggle-btn active" onclick="switchMealView('chat')" title="チャット" aria-label="チャット">💬</button>
+    </div>
+</div>
+
 <div class="tab-content-area">
 
     <!-- 本日の予定タブ(タイムライン/チャットをヘッダー右上のトグルで切替) -->
     <div id="tab-schedule" class="tab-panel active">
         <div class="meal-panel-inner">
+            <div class="day-toggle-row">
+                <button id="day-toggle-today-btn" class="day-toggle-btn active" onclick="switchDayMode('today')">📅 今日</button>
+                <button id="day-toggle-tomorrow-btn" class="day-toggle-btn" onclick="switchDayMode('tomorrow')">🌙 明日の下書き</button>
+            </div>
             <div id="schedule-view-timeline" class="meal-view active">
+                <div id="day-mode-banner-timeline" class="status-indicator day-mode-banner" style="display:none;">🌙 「明日の下書き」を表示中ニャ。日付が変わると自動で今日の予定になるニャ</div>
                 <div class="scroll-area">
                     <div id="timeline" class="timeline-wrap"></div>
                 </div>
             </div>
 
             <div id="schedule-view-chat" class="meal-view">
+                <div id="day-mode-banner-chat" class="status-indicator day-mode-banner" style="display:none;">🌙 「明日の下書き」を相談中ニャ。ここで話す内容は明日の予定に反映されるニャ</div>
                 <div id="status" class="status-indicator" style="display:none;">🎀 ネコ助が作戦を組み立て中ニャ...</div>
                 <div id="chat-talk-room" class="chat-talk-room">
                     <div class="chat-bubble-row">
@@ -673,12 +692,26 @@ const baseRoutines = [
 const MEAL_GREETING = { sender: 'nekosuke', text: '今日の夕飯、何にするニャ？食材や気分を教えてくれたら一緒に考えるニャ🐾' };
 
 let currentEvents = [];
+let tomorrowEvents = [];              // 前夜に仕込む翌日ドラフト(日付またぎで昇格、使い切り)
+let scheduleDisplayMode = 'today';    // 予定タブの表示対象: 'today' | 'tomorrow'(起動毎に'today'から開始)
 let mealMessages = [];
 let mealPlan = null;
 let mealMemo = [];
 let mealTabView = 'chat';
 let lastCheckedMinute = "";
 let importTargetTab = 'schedule';
+
+// 予定タブの編集・描画系関数はすべてこのヘルパー経由でデータにアクセスする。
+// scheduleDisplayModeに応じてcurrentEvents(今日)/tomorrowEvents(明日の下書き)を切り替えるだけの
+// 軽量なif分岐で対応し(今回は関数自体の共通化までは行わない。リファクタリング候補メモ参照)、
+// 各編集関数を「今日用」「明日用」に複製することを避ける。
+function activeEvents() {
+    return scheduleDisplayMode === 'tomorrow' ? tomorrowEvents : currentEvents;
+}
+function persistActiveEvents() {
+    if (scheduleDisplayMode === 'tomorrow') saveTomorrowEvents();
+    else saveToLocalStorage();
+}
 
 /* ============ 初期化・日付またぎ判定 ============ */
 function initApp() {
@@ -687,11 +720,27 @@ function initApp() {
     const isNewDay = (savedDate !== todayStr);
 
     const savedEvents = localStorage.getItem('DAILY_PLANNER_EVENTS');
-    if (isNewDay || !savedEvents) {
+    const savedTomorrowRaw = localStorage.getItem('DAILY_PLANNER_EVENTS_TOMORROW');
+    const tomorrowDraft = savedTomorrowRaw ? JSON.parse(savedTomorrowRaw) : [];
+
+    if (isNewDay) {
+        // 前夜に翌日ドラフトが仕込まれていれば、それを「今日」のデータとして昇格させる。
+        // ドラフトが無ければ従来通りベースルーティンから始める。
+        if (tomorrowDraft.length > 0) {
+            currentEvents = tomorrowDraft;
+        } else {
+            currentEvents = JSON.parse(JSON.stringify(baseRoutines));
+        }
+        tomorrowEvents = []; // 昇格後は使い切りでクリアする
+        localStorage.removeItem('DAILY_PLANNER_EVENTS_TOMORROW');
+    } else if (!savedEvents) {
         currentEvents = JSON.parse(JSON.stringify(baseRoutines));
+        tomorrowEvents = tomorrowDraft;
     } else {
         currentEvents = JSON.parse(savedEvents);
+        tomorrowEvents = tomorrowDraft;
     }
+    scheduleDisplayMode = 'today'; // 起動時は常に「今日」表示から始める(セッション内のみの選択状態)
 
     const savedMealChat = localStorage.getItem('DAILY_PLANNER_MEAL_CHAT');
     if (isNewDay || !savedMealChat) {
@@ -722,6 +771,9 @@ function initApp() {
 function saveToLocalStorage() {
     localStorage.setItem('DAILY_PLANNER_EVENTS', JSON.stringify(currentEvents));
     localStorage.setItem('DAILY_PLANNER_LAST_DATE', new Date().toDateString());
+}
+function saveTomorrowEvents() {
+    localStorage.setItem('DAILY_PLANNER_EVENTS_TOMORROW', JSON.stringify(tomorrowEvents));
 }
 function saveMealChat() {
     localStorage.setItem('DAILY_PLANNER_MEAL_CHAT', JSON.stringify(mealMessages));
@@ -828,6 +880,19 @@ function switchScheduleView(view) {
     }
 }
 
+// 予定タブの表示対象を「今日」⇄「明日の下書き」で切り替える。
+// 会話履歴(scheduleMessages)自体は今日/明日で分けず共有だが、
+// タイムライン表示とAIへ渡すデータ(activeEvents())だけが切り替わる。
+function switchDayMode(mode) {
+    scheduleDisplayMode = mode;
+    const isTomorrow = mode === 'tomorrow';
+    document.getElementById('day-toggle-today-btn').classList.toggle('active', !isTomorrow);
+    document.getElementById('day-toggle-tomorrow-btn').classList.toggle('active', isTomorrow);
+    document.getElementById('day-mode-banner-timeline').style.display = isTomorrow ? 'block' : 'none';
+    document.getElementById('day-mode-banner-chat').style.display = isTomorrow ? 'block' : 'none';
+    if (scheduleTabView === 'timeline') renderTimeline();
+}
+
 const NEKOSUKE_TIPS = [
     "この間にちょっと一息つくニャ☕",
     "余裕があるうちに水分補給しておくニャ🐾",
@@ -900,30 +965,65 @@ function buildNowIndicatorHtml() {
         </div>`;
 }
 
-function buildRowHtml(ev, idx) {
-    const chimeIcon = ev.chime ? "🔔" : "🔕";
-    const chimeClass = ev.chime ? "chime-toggle-btn active" : "chime-toggle-btn";
+// 予定タブの行(buildRowHtml)と段取りタブの行(buildMealRowHtml)は、
+// チェックボックスの色・チャイムボタンの有無・呼び出す更新関数名以外はほぼ同一の構造だったため、
+// 共通の行描画関数に統合した(リファクタリング候補メモ2.1参照)。
+// cfg: { itemClass, checkColor, connectorColor, showChime, toggleFn, toggleChimeFn,
+//        updateTimeFn, updateTitleFn, updateDetailFn, deleteFn }
+function buildEditableRowHtml(item, idx, cfg) {
+    const isDone = !!item.done;
+    const checkStyle = cfg.checkColor ? ` style="border-color:${cfg.checkColor};"` : '';
+    const connectorStyle = cfg.connectorColor ? ` style="background:${cfg.connectorColor};opacity:0.5;"` : '';
+    let chimeHtml = '';
+    if (cfg.showChime) {
+        const chimeIcon = item.chime ? "🔔" : "🔕";
+        const chimeClass = item.chime ? "chime-toggle-btn active" : "chime-toggle-btn";
+        chimeHtml = `<button class="${chimeClass}" onclick="${cfg.toggleChimeFn}(${idx})">${chimeIcon}</button>`;
+    }
     return `
         <div class="timeline-row">
-            <div class="node-col ${ev.done ? 'is-done-node' : ''}">
+            <div class="node-col ${isDone ? 'is-done-node' : ''}">
                 <label class="checkbox-container">
-                    <input type="checkbox" ${ev.done ? 'checked' : ''} onclick="toggleItem(${idx})">
-                    <span class="checkmark"></span>
+                    <input type="checkbox" ${isDone ? 'checked' : ''} onclick="${cfg.toggleFn}(${idx})">
+                    <span class="checkmark"${checkStyle}></span>
                 </label>
-                <div class="connector-line"></div>
+                <div class="connector-line"${connectorStyle}></div>
             </div>
-            <div class="timeline-item ${ev.type} ${ev.done ? 'is-done' : ''}">
+            <div class="timeline-item ${cfg.itemClass} ${isDone ? 'is-done' : ''}">
                 <div class="item-center">
                     <div class="time-row-wrapper">
-                        <input type="text" class="time-input" value="${ev.time}" onchange="updateTime(${idx}, this.value)">
-                        <button class="${chimeClass}" onclick="toggleChime(${idx})">${chimeIcon}</button>
+                        <input type="text" class="time-input" value="${item.time}" onchange="${cfg.updateTimeFn}(${idx}, this.value)">
+                        ${chimeHtml}
                     </div>
-                    <div class="title-input" contenteditable="true" onblur="updateTitle(${idx}, this.innerText)">${ev.title}</div>
-                    <div class="detail-input" contenteditable="true" onblur="updateDetail(${idx}, this.innerText)">${ev.detail || ''}</div>
+                    <div class="title-input" contenteditable="true" onblur="${cfg.updateTitleFn}(${idx}, this.innerText)">${item.title}</div>
+                    <div class="detail-input" contenteditable="true" onblur="${cfg.updateDetailFn}(${idx}, this.innerText)">${item.detail || ''}</div>
                 </div>
-                <button class="delete-btn" onclick="deleteItem(${idx})">✕</button>
+                <button class="delete-btn" onclick="${cfg.deleteFn}(${idx})">✕</button>
             </div>
         </div>`;
+}
+
+// 予定タブ/段取りタブの再描画関数が共通で持っていた「入力中は再描画をスキップする」判定を共通化。
+function shouldSkipRerenderForEditing(containerId) {
+    const active = document.activeElement;
+    const container = document.getElementById(containerId);
+    if (active && container && container.contains(active)) {
+        return active.classList.contains('title-input') || active.classList.contains('detail-input');
+    }
+    return false;
+}
+
+function buildRowHtml(ev, idx) {
+    return buildEditableRowHtml(ev, idx, {
+        itemClass: ev.type,
+        showChime: true,
+        toggleFn: 'toggleItem',
+        toggleChimeFn: 'toggleChime',
+        updateTimeFn: 'updateTime',
+        updateTitleFn: 'updateTitle',
+        updateDetailFn: 'updateDetail',
+        deleteFn: 'deleteItem'
+    });
 }
 
 function buildNekosukeRowHtml(tip) {
@@ -971,35 +1071,34 @@ function buildGapSegmentHtml(curEv, nextEv, nowMin) {
 function renderTimeline() {
     // 文字入力中(contenteditable/時刻入力)は再描画でフォーカスが飛ぶため、その間だけ更新をスキップ
     // (チェックボックスや削除ボタンのクリックはブロックしない)
-    const active = document.activeElement;
-    const timelineEl = document.getElementById('timeline');
-    if (active && timelineEl && timelineEl.contains(active)) {
-        const isTextEditing = active.classList.contains('title-input') ||
-            active.classList.contains('detail-input');
-        if (isTextEditing) return;
-    }
+    if (shouldSkipRerenderForEditing('timeline')) return;
 
     const container = document.getElementById('timeline');
-    currentEvents.sort((a, b) => a.time.localeCompare(b.time));
+    const events = activeEvents();
+    events.sort((a, b) => a.time.localeCompare(b.time));
 
-    const nowMin = nowMinutes();
+    // 「いま」インジケーターは今日表示の時だけ意味があるので、明日の下書き表示では出さない
+    const isTomorrow = scheduleDisplayMode === 'tomorrow';
+    const nowMin = isTomorrow ? -1 : nowMinutes();
     let html = '';
 
-    if (currentEvents.length === 0) {
-        container.innerHTML = '<div class="meal-plan-empty">予定がまだありません。チャットタブでネコ助に相談してみるニャ🐾</div>';
+    if (events.length === 0) {
+        container.innerHTML = isTomorrow
+            ? '<div class="meal-plan-empty">明日の下書きはまだ空です。下のチャットでネコ助に相談するか、時刻・タイトルを直接追加してみてニャ🐾</div>'
+            : '<div class="meal-plan-empty">予定がまだありません。チャットタブでネコ助に相談してみるニャ🐾</div>';
         return;
     }
 
-    if (nowMin < timeToMinutes(currentEvents[0].time)) {
+    if (!isTomorrow && nowMin < timeToMinutes(events[0].time)) {
         html += buildNowIndicatorHtml();
     }
 
-    currentEvents.forEach((ev, idx) => {
+    events.forEach((ev, idx) => {
         html += buildRowHtml(ev, idx);
-        const isLast = idx === currentEvents.length - 1;
+        const isLast = idx === events.length - 1;
         if (!isLast) {
-            html += buildGapSegmentHtml(ev, currentEvents[idx + 1], nowMin);
-        } else if (nowMin >= timeToMinutes(ev.time)) {
+            html += buildGapSegmentHtml(ev, events[idx + 1], nowMin);
+        } else if (!isTomorrow && nowMin >= timeToMinutes(ev.time)) {
             html += buildNowIndicatorHtml();
         }
     });
@@ -1046,16 +1145,17 @@ function formatTimeInput(val) {
     return val;
 }
 
-function updateTime(idx, newTime) { currentEvents[idx].time = formatTimeInput(newTime); renderTimeline(); saveToLocalStorage(); }
-function updateTitle(idx, newTitle) { currentEvents[idx].title = newTitle; saveToLocalStorage(); }
-function updateDetail(idx, newDetail) { currentEvents[idx].detail = newDetail; saveToLocalStorage(); }
-function deleteItem(idx) { currentEvents.splice(idx, 1); renderTimeline(); saveToLocalStorage(); }
+function updateTime(idx, newTime) { activeEvents()[idx].time = formatTimeInput(newTime); renderTimeline(); persistActiveEvents(); }
+function updateTitle(idx, newTitle) { activeEvents()[idx].title = newTitle; persistActiveEvents(); }
+function updateDetail(idx, newDetail) { activeEvents()[idx].detail = newDetail; persistActiveEvents(); }
+function deleteItem(idx) { activeEvents().splice(idx, 1); renderTimeline(); persistActiveEvents(); }
 function toggleItem(idx) {
-    const ev = currentEvents[idx];
+    const events = activeEvents();
+    const ev = events[idx];
     const wasDone = ev.done;
     ev.done = !wasDone;
     renderTimeline();
-    saveToLocalStorage();
+    persistActiveEvents();
     if (!wasDone && ev.done) showPraisePop(ev);
 }
 
@@ -1063,7 +1163,7 @@ function toggleItem(idx) {
 function showPraisePop(ev) {
     const container = document.getElementById('timeline');
     if (!container) return;
-    const newIdx = currentEvents.indexOf(ev);
+    const newIdx = activeEvents().indexOf(ev);
     if (newIdx === -1) return;
     const itemRows = container.querySelectorAll('.timeline-row:not(.nekosuke-row)');
     const targetRow = itemRows[newIdx];
@@ -1075,21 +1175,31 @@ function showPraisePop(ev) {
     card.appendChild(badge);
     setTimeout(() => badge.remove(), 1300);
 }
-function toggleChime(idx) { currentEvents[idx].chime = !currentEvents[idx].chime; playChimeSound(); renderTimeline(); saveToLocalStorage(); }
+function toggleChime(idx) { activeEvents()[idx].chime = !activeEvents()[idx].chime; playChimeSound(); renderTimeline(); persistActiveEvents(); }
 
-function applyProposedSchedule(buttonEl, jsonStr) {
+// mode省略時は'today'扱い(手動インポートは常に今日の予定を対象とする既存仕様を維持)。
+// チャットの反映ボタンは、その回答を生成した時点のscheduleDisplayModeを埋め込んで呼び出す。
+function applyProposedSchedule(buttonEl, jsonStr, mode) {
+    const targetMode = mode || 'today';
+    const baseArr = (targetMode === 'tomorrow') ? tomorrowEvents : currentEvents;
     const proposed = JSON.parse(decodeURIComponent(jsonStr));
-    const doneTitles = currentEvents.filter(e => e.done).map(e => e.title);
+    const doneTitles = baseArr.filter(e => e.done).map(e => e.title);
 
     proposed.forEach(newEvent => {
         if (doneTitles.includes(newEvent.title)) newEvent.done = true;
-        const matchOld = currentEvents.find(old => old.title === newEvent.title);
+        const matchOld = baseArr.find(old => old.title === newEvent.title);
         if (matchOld && matchOld.chime !== undefined) newEvent.chime = matchOld.chime;
     });
 
-    currentEvents = proposed;
-    renderTimeline();
-    saveToLocalStorage();
+    if (targetMode === 'tomorrow') {
+        tomorrowEvents = proposed;
+        saveTomorrowEvents();
+    } else {
+        currentEvents = proposed;
+        saveToLocalStorage();
+    }
+    // 表示中のモードと一致する場合のみ即座に再描画する(裏側のモードを更新しても見た目は変えない)
+    if (targetMode === scheduleDisplayMode) renderTimeline();
 
     // 手動インポート経由の場合はbuttonElがnullで渡ってくるためガードする
     if (buttonEl) {
@@ -1116,8 +1226,8 @@ function appendChatBubble(sender, text, isUser, rawJson, showImportShortcut) {
             const encodedJson = encodeURIComponent(JSON.stringify(rawJson));
             buttonHtml = `
                 <div class="apply-wrapper">
-                    <button class="apply-btn" onclick="applyProposedSchedule(this, '${encodedJson}')">
-                        <span>📅 この案をタイムラインに反映する🐾</span>
+                    <button class="apply-btn" onclick="applyProposedSchedule(this, '${encodedJson}', '${scheduleDisplayMode}')">
+                        <span>📅 この案を${scheduleDisplayMode === 'tomorrow' ? '明日の下書き' : 'タイムライン'}に反映する🐾</span>
                     </button>
                 </div>`;
         }
@@ -1154,11 +1264,16 @@ async function handleSend() {
     // 直近の会話履歴を渡して、話の流れを踏まえた自然な受け答えができるようにする
     const historyText = scheduleMessages.slice(-10).map(m => `${m.sender === 'user' ? 'ユーザー' : 'ネコ助'}: ${m.text}`).join('\n');
 
+    // 明日の下書きモードの場合、AIには「相談対象は明日である」ことを明示する
+    // (会話履歴自体は今日/明日で分けず共有だが、渡すタイムラインデータだけをモードに応じて切り替える)
+    const isTomorrowMode = scheduleDisplayMode === 'tomorrow';
+    const targetDayLabel = isTomorrowMode ? '明日' : '今日';
     const systemPrompt = `
     あなたはユーザーのスケジュール設計を助ける優秀なAIアシスタント「ネコ助」です。
     語尾には必ず「〜ニャ」「〜ニャ〜🐾」をつけて、おしゃべりしてください。
     これまでの会話の流れを踏まえて、自然に受け答えしてください。
-    【現在のタイムラインデータ】: ${JSON.stringify(currentEvents)}
+    現在ユーザーが相談しているのは「${targetDayLabel}」の予定です。
+    【${targetDayLabel}のタイムラインデータ】: ${JSON.stringify(activeEvents())}
     【生成ルール】:
     1. 予定の追加・削除・時刻変更など、タイムラインに具体的な変更を提案する時だけ、コメントの後に『===DATA===』を挟んで更新後の全予定JSONを出力してください。
     2. 雑談・質問への返答・相談段階のやり取りなど、タイムラインを変更しない返答の場合は、JSONを出力せずコメントのみ返してください（===DATA===は付けないでください）。
@@ -1321,41 +1436,28 @@ async function handleMealSend() {
 }
 
 function buildMealRowHtml(step, idx) {
-    return `
-        <div class="timeline-row">
-            <div class="node-col">
-                <div class="checkbox-container" style="pointer-events:none;">
-                    <span class="checkmark" style="border-color:var(--cooking);"></span>
-                </div>
-                <div class="connector-line" style="background:var(--cooking);opacity:0.5;"></div>
-            </div>
-            <div class="timeline-item cooking">
-                <div class="item-center">
-                    <div class="time-row-wrapper">
-                        <input type="text" class="time-input" value="${step.time}" onchange="updateMealStepTime(${idx}, this.value)">
-                    </div>
-                    <div class="title-input" contenteditable="true" onblur="updateMealStepTitle(${idx}, this.innerText)">${step.title}</div>
-                    <div class="detail-input" contenteditable="true" onblur="updateMealStepDetail(${idx}, this.innerText)">${step.detail || ''}</div>
-                </div>
-                <button class="delete-btn" onclick="deleteMealStep(${idx})">✕</button>
-            </div>
-        </div>`;
+    return buildEditableRowHtml(step, idx, {
+        itemClass: 'cooking',
+        checkColor: 'var(--cooking)',
+        connectorColor: 'var(--cooking)',
+        showChime: false,
+        toggleFn: 'toggleMealStep',
+        updateTimeFn: 'updateMealStepTime',
+        updateTitleFn: 'updateMealStepTitle',
+        updateDetailFn: 'updateMealStepDetail',
+        deleteFn: 'deleteMealStep'
+    });
 }
 
 function updateMealStepTime(idx, newTime) { mealPlan.steps[idx].time = formatTimeInput(newTime); renderMealPlan(); saveMealPlan(); }
 function updateMealStepTitle(idx, newTitle) { mealPlan.steps[idx].title = newTitle; saveMealPlan(); }
 function updateMealStepDetail(idx, newDetail) { mealPlan.steps[idx].detail = newDetail; saveMealPlan(); }
 function deleteMealStep(idx) { mealPlan.steps.splice(idx, 1); renderMealPlan(); saveMealPlan(); }
+function toggleMealStep(idx) { mealPlan.steps[idx].done = !mealPlan.steps[idx].done; renderMealPlan(); saveMealPlan(); }
 
 function renderMealPlan() {
     // 予定タブのrenderTimeline()と同様、入力中(contenteditable/時刻入力)は再描画でフォーカスが飛ぶため更新をスキップする
-    const active = document.activeElement;
-    const contentElCheck = document.getElementById('meal-plan-content');
-    if (active && contentElCheck && contentElCheck.contains(active)) {
-        const isTextEditing = active.classList.contains('title-input') ||
-            active.classList.contains('detail-input');
-        if (isTextEditing) return;
-    }
+    if (shouldSkipRerenderForEditing('meal-plan-content')) return;
 
     const container = document.getElementById('meal-plan-content');
     if (!mealPlan || !mealPlan.steps || mealPlan.steps.length === 0) {
