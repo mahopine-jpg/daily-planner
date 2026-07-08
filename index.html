@@ -105,15 +105,49 @@ body {
 .tab-panel.active { display: flex; }
 .scroll-area { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-bottom: calc(90px + env(safe-area-inset-bottom)); }
 
-/* ===== チャットFAB(予定タブでは日付セレクター、献立タブでは全体を覆う形で右下に浮く) =====
-   タップで「今開いているタブに応じたチャット」を開閉する。中身自体はまだ従来の
-   タブ切替方式(switchScheduleView/switchMealView)を流用しており、半モーダル化は次フェーズで行う。 */
+/* ===== チャットFAB(予定タブ・献立タブ共通で右下に浮く) =====
+   タップで「今開いているタブに応じたチャット」を半モーダルオーバーレイとして開閉する。 */
 .chat-fab {
     position: absolute; right: 16px; bottom: calc(64px + env(safe-area-inset-bottom) + 14px);
     width: 52px; height: 52px; border-radius: 50%; background: var(--accent); border: none;
     color: #ffffff; font-size: 22px; display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 4px 12px rgba(108,92,231,0.35); cursor: pointer; z-index: 40;
+    box-shadow: 0 4px 12px rgba(108,92,231,0.35); cursor: pointer; z-index: 65;
+    transition: transform .2s ease;
 }
+
+/* ===== 半モーダルチャットオーバーレイ =====
+   予定タブ/献立タブのFABから開く、画面下からせり上がるチャット。
+   #app-shell自体が--app-height(visualViewport連動)で高さ管理されているため、
+   このオーバーレイは追加のキーボード監視ロジックなしで、bottom:0を指定するだけで
+   自然にキーボードの上に位置するようになる。 */
+.chat-scrim {
+    position: absolute; inset: 0; background: rgba(30,25,50,0);
+    pointer-events: none; transition: background .25s ease; z-index: 55;
+}
+.chat-scrim.open { background: rgba(30,25,50,0.28); pointer-events: auto; }
+
+.chat-overlay {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 0;
+    background: #ffffff; border-radius: 20px 20px 0 0;
+    box-shadow: 0 -4px 16px rgba(0,0,0,0.12); overflow: hidden;
+    display: flex; flex-direction: column; transition: height .28s ease; z-index: 60;
+}
+.chat-overlay.open { height: 58%; }
+/* 入力欄フォーカス中は、履歴を隠して入力欄だけの薄い帯に縮める
+   (キーボードとの合計占有面積を抑え、背景のタイムラインが見える面積を保つため) */
+.chat-overlay.open.typing { height: 96px; }
+.chat-overlay.typing .chat-overlay-handle-row { display: none; }
+.chat-overlay.typing .chat-overlay-body { display: none !important; }
+
+.chat-overlay-handle-row { flex-shrink: 0; display: flex; justify-content: center; padding: 8px 0 2px; }
+.chat-overlay-handle { width: 34px; height: 4px; border-radius: 2px; background: #d8d6ee; }
+.chat-overlay-header {
+    flex-shrink: 0; display: flex; align-items: center; justify-content: space-between;
+    padding: 2px 16px 8px 16px; border-bottom: 1px solid var(--border-color);
+}
+.chat-overlay-title { font-size: 13px; font-weight: 700; color: var(--accent); }
+.chat-overlay-close { background: none; border: none; color: #999; font-size: 16px; cursor: pointer; padding: 4px; }
+.chat-overlay-body { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
 
 /* ===== 予定表タブ：今日/明日の日付セレクター(色を使わないプレーン表示) ===== */
 .day-selector-row {
@@ -391,30 +425,10 @@ body {
                     <span class="day-selector-label">明日の下書き</span>
                 </button>
             </div>
-            <div id="schedule-view-timeline" class="meal-view active">
+            <div id="schedule-view-timeline" class="chat-overlay-body" style="display:flex;">
                 <div id="day-mode-banner-timeline" class="status-indicator day-mode-banner" style="display:none;">🌙 「明日の下書き」を表示中ニャ。日付が変わると自動で今日の予定になるニャ</div>
                 <div class="scroll-area">
                     <div id="timeline" class="timeline-wrap"></div>
-                </div>
-            </div>
-
-            <div id="schedule-view-chat" class="meal-view">
-                <div id="day-mode-banner-chat" class="status-indicator day-mode-banner" style="display:none;">🌙 「明日の下書き」を相談中ニャ。ここで話す内容は明日の予定に反映されるニャ</div>
-                <div id="status" class="status-indicator" style="display:none;">🎀 ネコ助が作戦を組み立て中ニャ...</div>
-                <div id="chat-talk-room" class="chat-talk-room">
-                    <div class="chat-bubble-row">
-                        <div class="chat-avatar">🐱</div>
-                        <div class="chat-msg-body">
-                            <div class="chat-sender-name">ネコ助</div>
-                            <div class="bubble">Mihoさん、今日もお疲れ様ニャ！1日の段取りを一緒に育てるニャ🐾 予定の追加や変更があれば、いつでもここに話しかけてニャ〜！</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="input-bar-wrapper">
-                    <textarea id="chat-input" class="chat-input" rows="1" placeholder="予定を入力ニャ..." oninput="autoGrow(this)"></textarea>
-                    <button id="schedule-send-btn" class="send-btn" onclick="handleSend()">
-                        <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
-                    </button>
                 </div>
             </div>
         </div>
@@ -423,18 +437,7 @@ body {
     <!-- 献立＆調理タブ -->
     <div id="tab-meal" class="tab-panel">
         <div class="meal-panel-inner">
-            <div id="meal-view-chat" class="meal-view active">
-                <div id="meal-status" class="status-indicator" style="display:none;">🎀 ネコ助が段取りを考え中ニャ...</div>
-                <div id="meal-chat-talk-room" class="chat-talk-room"></div>
-                <div class="input-bar-wrapper">
-                    <textarea id="meal-chat-input" class="chat-input" rows="1" placeholder="今日の夕飯の相談をどうぞニャ..." oninput="autoGrow(this)"></textarea>
-                    <button id="meal-send-btn" class="send-btn" onclick="handleMealSend()">
-                        <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
-                    </button>
-                </div>
-            </div>
-
-            <div id="meal-view-plan" class="meal-view">
+            <div id="meal-view-plan" class="chat-overlay-body" style="display:flex;">
                 <div class="scroll-area">
                     <div id="meal-plan-content"></div>
                 </div>
@@ -443,6 +446,48 @@ body {
     </div>
 
 </div>
+
+<!-- 半モーダルチャットオーバーレイ(予定/献立共通。FABから開閉する) -->
+<div id="chat-scrim" class="chat-scrim" onclick="closeChatOverlay()"></div>
+<div id="chat-overlay" class="chat-overlay">
+    <div class="chat-overlay-handle-row"><div class="chat-overlay-handle"></div></div>
+    <div class="chat-overlay-header">
+        <span id="chat-overlay-title" class="chat-overlay-title">📅 予定について相談</span>
+        <button class="chat-overlay-close" onclick="closeChatOverlay()" aria-label="閉じる">✕</button>
+    </div>
+
+    <div id="schedule-view-chat" class="chat-overlay-body" style="display:flex;">
+        <div id="day-mode-banner-chat" class="status-indicator day-mode-banner" style="display:none;">🌙 「明日の下書き」を相談中ニャ。ここで話す内容は明日の予定に反映されるニャ</div>
+        <div id="status" class="status-indicator" style="display:none;">🎀 ネコ助が作戦を組み立て中ニャ...</div>
+        <div id="chat-talk-room" class="chat-talk-room">
+            <div class="chat-bubble-row">
+                <div class="chat-avatar">🐱</div>
+                <div class="chat-msg-body">
+                    <div class="chat-sender-name">ネコ助</div>
+                    <div class="bubble">Mihoさん、今日もお疲れ様ニャ！1日の段取りを一緒に育てるニャ🐾 予定の追加や変更があれば、いつでもここに話しかけてニャ〜！</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="schedule-chat-input-row" class="input-bar-wrapper" style="display:flex;">
+        <textarea id="chat-input" class="chat-input" rows="1" placeholder="予定を入力ニャ..." oninput="autoGrow(this)" onfocus="handleChatInputFocus()" onblur="handleChatInputBlur()"></textarea>
+        <button id="schedule-send-btn" class="send-btn" onclick="handleSend()">
+            <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+        </button>
+    </div>
+
+    <div id="meal-view-chat" class="chat-overlay-body" style="display:none;">
+        <div id="meal-status" class="status-indicator" style="display:none;">🎀 ネコ助が段取りを考え中ニャ...</div>
+        <div id="meal-chat-talk-room" class="chat-talk-room"></div>
+    </div>
+    <div id="meal-chat-input-row" class="input-bar-wrapper" style="display:none;">
+        <textarea id="meal-chat-input" class="chat-input" rows="1" placeholder="今日の夕飯の相談をどうぞニャ..." oninput="autoGrow(this)" onfocus="handleChatInputFocus()" onblur="handleChatInputBlur()"></textarea>
+        <button id="meal-send-btn" class="send-btn" onclick="handleMealSend()">
+            <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+        </button>
+    </div>
+</div>
+
 
 <button id="chat-fab" class="chat-fab" onclick="toggleChatFab()" aria-label="チャットを開く">💬</button>
 
@@ -701,7 +746,6 @@ let scheduleDisplayMode = 'today';    // 予定タブの表示対象: 'today' | 
 let mealMessages = [];
 let mealPlan = null;
 let mealMemo = [];
-let mealTabView = 'chat';
 let lastCheckedMinute = "";
 let importTargetTab = 'schedule';
 
@@ -866,20 +910,9 @@ function showTab(tabId, btnEl) {
     document.getElementById(tabId).classList.add('active');
     document.querySelectorAll('.tab-bar-btn').forEach(b => b.classList.remove('active'));
     btnEl.classList.add('active');
-    updateChatFabIcon();
-}
-
-let scheduleTabView = 'timeline';
-function switchScheduleView(view) {
-    scheduleTabView = view;
-    document.getElementById('schedule-view-timeline').classList.toggle('active', view === 'timeline');
-    document.getElementById('schedule-view-chat').classList.toggle('active', view === 'chat');
-    if (view === 'timeline') renderTimeline();
-    if (view === 'chat') {
-        const room = document.getElementById('chat-talk-room');
-        room.scrollTop = room.scrollHeight;
-    }
-    updateChatFabIcon();
+    // タブバー自体がオーバーレイの下に隠れる設計のため、通常ここに来るのはオーバーレイが
+    // 閉じている時だけだが、念のため開いていれば閉じておく
+    if (chatOverlayOpen) closeChatOverlay();
 }
 
 // 予定タブの表示対象を「今日」⇄「明日の下書き」で切り替える。
@@ -892,7 +925,7 @@ function switchDayMode(mode) {
     document.getElementById('day-toggle-tomorrow-btn').classList.toggle('active', isTomorrow);
     document.getElementById('day-mode-banner-timeline').style.display = isTomorrow ? 'block' : 'none';
     document.getElementById('day-mode-banner-chat').style.display = isTomorrow ? 'block' : 'none';
-    if (scheduleTabView === 'timeline') renderTimeline();
+    renderTimeline(); // 予定タブは常にタイムライン表示のため無条件で再描画してよい
 }
 
 // 日付セレクターの「7月8日(水)」のような表示を、実際の日付から計算してセットする
@@ -910,26 +943,63 @@ function updateDaySelectorDates() {
     if (tomorrowEl) tomorrowEl.textContent = fmt(tomorrow);
 }
 
-// 右下のチャットFAB。「今どのタブ・どの表示中か」に応じて、開くチャットの中身と
-// アイコン(💬=開く/📋or🍳=閉じて一覧に戻る)を自動で切り替える。
-// 中身はまだ従来のタブ切替方式(switchScheduleView/switchMealView)を流用しており、
-// 半モーダル化(見た目を画面下からせり上がる形にする)は次フェーズで対応する。
+/* ============ 半モーダルチャットオーバーレイ ============
+   予定タブ/献立タブ共通のチャットを、画面下からせり上がるオーバーレイとして開閉する。
+   #app-shell自体が--app-height(visualViewport連動)で高さ管理されているため、
+   このオーバーレイはbottom:0を指定するだけでキーボードの上に自然に位置する
+   (オーバーレイ自身に追加のキーボード監視ロジックは不要だった)。 */
+let chatOverlayOpen = false;
+let chatOverlayContext = null; // 'schedule' | 'meal'
+
+function openChatOverlay(context) {
+    chatOverlayOpen = true;
+    chatOverlayContext = context;
+
+    document.getElementById('schedule-view-chat').style.display = (context === 'schedule') ? 'flex' : 'none';
+    document.getElementById('schedule-chat-input-row').style.display = (context === 'schedule') ? 'flex' : 'none';
+    document.getElementById('meal-view-chat').style.display = (context === 'meal') ? 'flex' : 'none';
+    document.getElementById('meal-chat-input-row').style.display = (context === 'meal') ? 'flex' : 'none';
+    document.getElementById('chat-overlay-title').textContent = (context === 'schedule') ? '📅 予定について相談' : '🍳 献立について相談';
+
+    document.getElementById('chat-overlay').classList.add('open');
+    document.getElementById('chat-scrim').classList.add('open');
+
+    const room = document.getElementById(context === 'schedule' ? 'chat-talk-room' : 'meal-chat-talk-room');
+    room.scrollTop = room.scrollHeight;
+
+    updateChatFabIcon();
+}
+
+function closeChatOverlay() {
+    if (!chatOverlayOpen) return;
+    chatOverlayOpen = false;
+    document.getElementById('chat-overlay').classList.remove('open', 'typing');
+    document.getElementById('chat-scrim').classList.remove('open');
+    document.getElementById('chat-input').blur();
+    document.getElementById('meal-chat-input').blur();
+    updateChatFabIcon();
+}
+
+// 入力欄フォーカス中は、履歴を隠して入力欄だけの薄い帯に縮める
+function handleChatInputFocus() { document.getElementById('chat-overlay').classList.add('typing'); }
+function handleChatInputBlur() { document.getElementById('chat-overlay').classList.remove('typing'); }
+
+// 右下のチャットFAB。「今開いているタブ」に応じたチャットを開閉する。
 function toggleChatFab() {
     const activeTabId = document.querySelector('.tab-panel.active').id;
-    if (activeTabId === 'tab-schedule') {
-        switchScheduleView(scheduleTabView === 'chat' ? 'timeline' : 'chat');
+    const context = (activeTabId === 'tab-schedule') ? 'schedule' : 'meal';
+    if (chatOverlayOpen && chatOverlayContext === context) {
+        closeChatOverlay();
     } else {
-        switchMealView(mealTabView === 'chat' ? 'plan' : 'chat');
+        openChatOverlay(context);
     }
 }
 function updateChatFabIcon() {
-    const activeTabId = document.querySelector('.tab-panel.active').id;
     const fab = document.getElementById('chat-fab');
     if (!fab) return;
-    const isChatOpen = (activeTabId === 'tab-schedule' && scheduleTabView === 'chat') ||
-                        (activeTabId === 'tab-meal' && mealTabView === 'chat');
-    fab.textContent = isChatOpen ? (activeTabId === 'tab-schedule' ? '📅' : '🍳') : '💬';
-    fab.setAttribute('aria-label', isChatOpen ? '一覧に戻る' : 'チャットを開く');
+    fab.textContent = chatOverlayOpen ? '✕' : '💬';
+    fab.setAttribute('aria-label', chatOverlayOpen ? '閉じる' : 'チャットを開く');
+    fab.style.transform = chatOverlayOpen ? 'scale(0.001)' : 'scale(1)';
 }
 
 const NEKOSUKE_TIPS = [
@@ -1346,18 +1416,6 @@ async function handleSend() {
 }
 
 /* ============ 献立＆調理タブ ============ */
-function switchMealView(view) {
-    mealTabView = view;
-    document.getElementById('meal-view-chat').classList.toggle('active', view === 'chat');
-    document.getElementById('meal-view-plan').classList.toggle('active', view === 'plan');
-    if (view === 'plan') renderMealPlan();
-    if (view === 'chat') {
-        const room = document.getElementById('meal-chat-talk-room');
-        room.scrollTop = room.scrollHeight;
-    }
-    updateChatFabIcon();
-}
-
 function renderMealChatRoom() {
     const room = document.getElementById('meal-chat-talk-room');
     room.innerHTML = '';
@@ -1458,7 +1516,8 @@ async function handleMealSend() {
                     mealPlan = plan;
                     saveMealPlan();
                     appendMealBubbleLive('nekosuke', parts[0].trim(), false, plan, memoNoteText);
-                    switchMealView('plan');
+                    renderMealPlan();
+                    closeChatOverlay(); // 段取りが完成したら、チャットを閉じて背後の一覧を見せる
                 } catch (parseErr) {
                     console.error('段取りJSONの解析に失敗しました:', parseErr, jsonText);
                     appendMealBubbleLive('nekosuke', (parts[0].trim() || "うまくまとめられなかったニャ…") + "\n\n（段取りデータの形式が崩れていたので反映できなかったニャ。もう一度お願いしてほしいニャ🙏）", false, null, memoNoteText);
@@ -1769,7 +1828,7 @@ function applyManualImport(target, pastedText) {
             const plan = JSON.parse(extractJsonBlock(parts[1]));
             mealPlan = plan;
             saveMealPlan();
-            switchMealView('plan');
+            renderMealPlan();
         } catch (e) {
             console.error('手動インポート(献立)の解析に失敗しました:', e);
             showImportError();
