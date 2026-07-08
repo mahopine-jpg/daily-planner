@@ -67,14 +67,15 @@ body {
 .header-top-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .header-center { flex: 1; min-width: 0; text-align: center; }
 .header-center h1 { font-size: 22px; font-weight: 700; color: #6b6690; margin: 0; letter-spacing: 0.3px; }
+.header-center h1 .title-deco { font-size: 16px; opacity: 0.75; }
 .header-center .date-str { font-size: 12px; font-weight: 600; color: #8e8cb2; margin: 3px 0 0 0; }
 .header-spacer { width: 40px; flex-shrink: 0; }
 
 .header-menu-wrap { position: relative; flex-shrink: 0; }
 .nekosuke-face-btn {
-    background: #fff8ea; border: 1px solid var(--border-color); width: 40px; height: 40px;
-    border-radius: 50%; font-size: 19px; display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 3px 8px rgba(108,92,231,0.12); transition: transform 0.2s; cursor: pointer;
+    background: none; border: none; width: 40px; height: 40px;
+    font-size: 22px; color: #6b6690; display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
 }
 .header-menu {
     display: none; position: absolute; top: calc(100% + 8px); left: 0;
@@ -414,7 +415,7 @@ body {
             </div>
         </div>
         <div class="header-center">
-            <h1>Daily Planner AI</h1>
+            <h1><span class="title-deco">✨</span> Daily Planner AI <span class="title-deco">✨</span></h1>
             <div id="current-date" class="date-str">Loading...</div>
         </div>
         <div class="header-spacer"></div>
@@ -499,15 +500,7 @@ body {
 </div>
 
 
-<button id="chat-fab" class="chat-fab" onclick="toggleChatFab()" aria-label="チャットを開く">
-    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h9A2.5 2.5 0 0 1 18 5.5v6A2.5 2.5 0 0 1 15.5 14H10l-4 3v-3H6.5A2.5 2.5 0 0 1 4 11.5v-6z" fill="#ffffff"/>
-        <circle cx="8" cy="8.3" r="1.1" fill="var(--accent)"/>
-        <circle cx="11.3" cy="8.3" r="1.1" fill="var(--accent)"/>
-        <circle cx="14.6" cy="8.3" r="1.1" fill="var(--accent)"/>
-        <path d="M19.3 2.2l0.7 1.9 1.9 0.7-1.9 0.7-0.7 1.9-0.7-1.9-1.9-0.7 1.9-0.7z" fill="#ffffff"/>
-    </svg>
-</button>
+<button id="chat-fab" class="chat-fab" onclick="toggleChatFab()" aria-label="チャットを開く">💬</button>
 
 <div class="bottom-tab-bar">
     <button class="tab-bar-btn active" data-tab="tab-schedule" onclick="showTab('tab-schedule', this)">
@@ -1001,23 +994,11 @@ function toggleChatFab() {
         openChatOverlay(context);
     }
 }
-const CHAT_FAB_ICON_SVG = `
-    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h9A2.5 2.5 0 0 1 18 5.5v6A2.5 2.5 0 0 1 15.5 14H10l-4 3v-3H6.5A2.5 2.5 0 0 1 4 11.5v-6z" fill="#ffffff"/>
-        <circle cx="8" cy="8.3" r="1.1" fill="var(--accent)"/>
-        <circle cx="11.3" cy="8.3" r="1.1" fill="var(--accent)"/>
-        <circle cx="14.6" cy="8.3" r="1.1" fill="var(--accent)"/>
-        <path d="M19.3 2.2l0.7 1.9 1.9 0.7-1.9 0.7-0.7 1.9-0.7-1.9-1.9-0.7 1.9-0.7z" fill="#ffffff"/>
-    </svg>`;
-const CHAT_FAB_ICON_CLOSE_SVG = `
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M5 5l14 14M19 5L5 19" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round"/>
-    </svg>`;
 
 function updateChatFabIcon() {
     const fab = document.getElementById('chat-fab');
     if (!fab) return;
-    fab.innerHTML = chatOverlayOpen ? CHAT_FAB_ICON_CLOSE_SVG : CHAT_FAB_ICON_SVG;
+    fab.textContent = chatOverlayOpen ? '✕' : '💬';
     fab.setAttribute('aria-label', chatOverlayOpen ? '閉じる' : 'チャットを開く');
     fab.style.transform = chatOverlayOpen ? 'scale(0.001)' : 'scale(1)';
 }
