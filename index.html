@@ -112,7 +112,8 @@ body {
 .tab-panel.active { display: flex; }
 .scroll-area { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-bottom: calc(90px + env(safe-area-inset-bottom)); }
 
-/* ===== チャットFAB(予定タブ・献立タブ共通で右下に浮く) ===== */
+/* ===== チャットFAB(予定タブ・献立タブ共通で右下に浮く) =====
+   タップで「今開いているタブに応じたチャット」を半モーダルオーバーレイとして開閉する。 */
 .chat-fab {
     position: absolute; right: 16px; bottom: calc(64px + env(safe-area-inset-bottom) + 14px);
     width: 52px; height: 52px; border-radius: 50%; background: var(--accent); border: none;
@@ -121,7 +122,11 @@ body {
     transition: transform .2s ease;
 }
 
-/* ===== 半モーダルチャットオーバーレイ ===== */
+/* ===== 半モーダルチャットオーバーレイ =====
+   予定タブ/献立タブのFABから開く、画面下からせり上がるチャット。
+   #app-shell自体が--app-height(visualViewport連動)で高さ管理されているため、
+   このオーバーレイは追加のキーボード監視ロジックなしで、bottom:0を指定するだけで
+   自然にキーボードの上に位置するようになる。 */
 .chat-scrim {
     position: absolute; inset: 0; background: rgba(30,25,50,0);
     pointer-events: none; transition: background .25s ease; z-index: 55;
@@ -135,6 +140,8 @@ body {
     display: flex; flex-direction: column; transition: height .28s ease; z-index: 60;
 }
 .chat-overlay.open { height: 58%; }
+/* 入力欄フォーカス中は、履歴を隠して入力欄だけの薄い帯に縮める
+   (キーボードとの合計占有面積を抑え、背景のタイムラインが見える面積を保つため) */
 .chat-overlay.open.typing { height: 96px; }
 .chat-overlay.typing .chat-overlay-handle-row { display: none; }
 .chat-overlay.typing .chat-overlay-body { display: none !important; }
@@ -149,7 +156,7 @@ body {
 .chat-overlay-close { background: none; border: none; color: #999; font-size: 16px; cursor: pointer; padding: 4px; }
 .chat-overlay-body { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
 
-/* ===== 予定表タブ：今日/明日の日付セレクター ===== */
+/* ===== 予定表タブ：今日/明日の日付セレクター(色を使わないプレーン表示) ===== */
 .day-selector-row {
     flex-shrink: 0; display: flex; align-items: center; justify-content: center; gap: 16px;
     padding: 10px 16px 8px 16px; background: var(--bg-color);
@@ -308,7 +315,7 @@ body {
 .meal-plan-header h2 { font-size: 18px; margin: 0; color: var(--text-main); }
 .meal-plan-header .dish-label { font-size: 12px; color: var(--text-sub); font-weight: 600; }
 
-/* ===== 各種モーダル ===== */
+/* ===== 日記モーダル ===== */
 .diary-overlay {
     position: fixed; inset: 0; background: rgba(30,25,50,0.45); z-index: 2000;
     display: none; align-items: flex-end; justify-content: center;
@@ -339,6 +346,7 @@ body {
     color: #fff; font-size: 15px; font-weight: 700; cursor: pointer;
 }
 
+/* ===== 食材メモモーダル ===== */
 .memo-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
 .memo-row {
     display: flex; align-items: center; gap: 10px; background: #faf9ff; border: 1px solid var(--border-color);
@@ -360,6 +368,7 @@ body {
 .memo-add-btn { background: var(--accent); color: #fff; border: none; padding: 0 16px; border-radius: 12px; font-size: 13px; font-weight: 700; cursor: pointer; }
 .memo-note { margin-top: 6px; font-size: 11px; font-weight: bold; color: #2ecc71; background: #eafaf1; padding: 5px 10px; border-radius: 12px; display: inline-block; }
 
+/* ===== 手動インポートモーダル ===== */
 .import-target-tabs { display: flex; gap: 8px; margin-bottom: 14px; }
 .import-target-tab-btn {
     flex: 1; background: #f5f4fa; border: none; border-radius: 12px; padding: 9px 4px;
@@ -387,6 +396,9 @@ body {
 </style>
 </head>
 <body>
+<!-- ホームインジケーター周りのセーフエリアだけを確実に白く塗る。
+     position:fixedでビューポート基準に配置するため、#app-shellの高さ計算(--app-height)の
+     タイミングに左右されず、常にタブバーと同じ白で塗られる。 -->
 <div class="safe-area-bottom-fill"></div>
 <div id="app-shell">
 
@@ -402,7 +414,7 @@ body {
             </div>
         </div>
         <div class="header-center">
-            <h1>Daily Planner AI ✨</h1>
+            <h1>Daily Planner AI</h1>
             <div id="current-date" class="date-str">Loading...</div>
         </div>
         <div class="header-spacer"></div>
@@ -410,7 +422,8 @@ body {
 </div>
 
 <div class="tab-content-area">
-    <!-- 本日の予定タブ -->
+
+    <!-- 本日の予定タブ(タイムライン/チャットをヘッダー右上のトグルで切替) -->
     <div id="tab-schedule" class="tab-panel active">
         <div class="meal-panel-inner">
             <div class="day-selector-row">
@@ -441,9 +454,10 @@ body {
             </div>
         </div>
     </div>
+
 </div>
 
-<!-- 半モーダルチャットオーバーレイ -->
+<!-- 半モーダルチャットオーバーレイ(予定/献立共通。FABから開閉する) -->
 <div id="chat-scrim" class="chat-scrim" onclick="closeChatOverlay()"></div>
 <div id="chat-overlay" class="chat-overlay">
     <div class="chat-overlay-handle-row"><div class="chat-overlay-handle"></div></div>
@@ -484,14 +498,14 @@ body {
     </div>
 </div>
 
-<!-- 【完全差し替え】チャットFAB：初期状態のボタン内部も新しいアイコンSVGに変更 -->
+
 <button id="chat-fab" class="chat-fab" onclick="toggleChatFab()" aria-label="チャットを開く">
-    <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path fill-rule="evenodd" clip-rule="evenodd" d="M14.5 5C9.25329 5 5 9.25329 5 14.5C5 17.2282 6.14912 19.6879 7.99049 21.4309C7.43261 22.846 6.36872 24.2215 5.21586 25.1432C5.00693 25.3102 5.05942 25.6429 5.31291 25.7351C7.14705 26.4026 9.38712 26.1772 11.233 25.048C12.2476 25.3412 13.3413 25.5 14.5 25.5C19.7467 25.5 24 21.2467 24 14.5C24 9.25329 19.7467 5 14.5 5ZM21.9056 9.51011C21.4011 9.32626 21.0071 8.93229 21.8232 8.42777C22.2536 8.04655 22.6202 7.5759 22.9056 7.03964C23.191 7.5759 23.5576 8.04655 23.988 8.42777C24.4925 8.93229 24.8865 9.32626 25.391 9.51011C24.8865 9.69397 24.4925 10.0879 23.988 10.5925C23.5576 10.9737 23.191 11.4443 22.9056 11.9806C22.6202 11.4443 22.2536 10.9737 21.8232 10.5925C21.0071 10.0879 21.4011 9.69397 21.9056 9.51011Z" fill="#ffffff"/>
-        <path d="M11 11.5C11 10.5 11.5 10 12.5 10C11.5 10 11 9.5 11 8.5C11 9.5 10.5 10 9.5 10C10.5 10 11 10.5 11 11.5ZM17 19.5C17 18.5 17.5 18 18.5 18C17.5 18 17 17.5 17 16.5C17 17.5 16.5 18 15.5 18C16.5 18 17 18.5 17 19.5Z" fill="#ffffff"/>
-        <circle cx="11.5" cy="15.5" r="1" fill="#6c5ce7"/>
-        <circle cx="14.5" cy="15.5" r="1" fill="#6c5ce7"/>
-        <circle cx="17.5" cy="15.5" r="1" fill="#6c5ce7"/>
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h9A2.5 2.5 0 0 1 18 5.5v6A2.5 2.5 0 0 1 15.5 14H10l-4 3v-3H6.5A2.5 2.5 0 0 1 4 11.5v-6z" fill="#ffffff"/>
+        <circle cx="8" cy="8.3" r="1.1" fill="var(--accent)"/>
+        <circle cx="11.3" cy="8.3" r="1.1" fill="var(--accent)"/>
+        <circle cx="14.6" cy="8.3" r="1.1" fill="var(--accent)"/>
+        <path d="M19.3 2.2l0.7 1.9 1.9 0.7-1.9 0.7-0.7 1.9-0.7-1.9-1.9-0.7 1.9-0.7z" fill="#ffffff"/>
     </svg>
 </button>
 
@@ -506,7 +520,7 @@ body {
 
 </div><!-- /#app-shell -->
 
-<!-- 各種モーダル構造 -->
+<!-- 日記出力モーダル -->
 <div id="diary-overlay" class="diary-overlay">
     <div class="diary-card">
         <div class="diary-card-header">
@@ -517,6 +531,7 @@ body {
     </div>
 </div>
 
+<!-- 食材メモモーダル -->
 <div id="memo-overlay" class="diary-overlay">
     <div class="diary-card">
         <div class="diary-card-header">
@@ -527,6 +542,7 @@ body {
     </div>
 </div>
 
+<!-- 手動インポートモーダル -->
 <div id="import-overlay" class="diary-overlay">
     <div class="diary-card">
         <div class="diary-card-header">
@@ -553,11 +569,21 @@ const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models
 
 function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
 
+// Googleの無料枠に実際に達する前に、アプリ側で自主的にブレーキをかける。
+// 直近60秒間の送信回数を記録し、しきい値に達したら実際のfetchを送らずに待機を促す。
+// しきい値は固定値ではなく、実際に429(RPM超過)を受け取った際の直近送信回数から学習する(4.1)。
 const REQUEST_WINDOW_MS = 60000;
-const DEFAULT_SAFE_REQUEST_LIMIT = 15;
-let learnedRpmLimit = null;
+const DEFAULT_SAFE_REQUEST_LIMIT = 15; // 学習前の暫定初期値
+let learnedRpmLimit = null; // 実際に429(RPM超過)から判明した上限。未学習ならnull
 let requestTimestamps = [];
 
+function currentSafeLimit() {
+    // 学習値そのものではなく、-1して少し余裕を持たせる
+    return learnedRpmLimit !== null ? Math.max(1, learnedRpmLimit - 1) : DEFAULT_SAFE_REQUEST_LIMIT;
+}
+
+// 送信履歴のLocalStorage併用保存(4.2)。PWAがバックグラウンドから復帰してメモリが
+// 初期化されていても、直近60秒の送信状況を正しく復元できるようにする。
 const REQUEST_LOG_KEY = 'DAILY_PLANNER_REQUEST_LOG';
 function loadRequestTimestamps() {
     try {
@@ -581,11 +607,18 @@ function secondsUntilNextSlot() {
     return Math.max(1, Math.ceil((REQUEST_WINDOW_MS - (Date.now() - requestTimestamps[0])) / 1000));
 }
 
+// 「high demand」「overloaded」やHTTP 503など、
+// "一時的なサーバー側の混雑"だとわかるものだけ自動でリトライする。
+// 429(クォータ超過)はここに含めない。無料枠の上限に達している状態なので、
+// 即座に再送してもほぼ確実に失敗し、かえって残りわずかな枠を無駄に消費して
+// 次のリクエストまで巻き込んでエラーにしてしまうため。
 function isRetryableError(status, msg) {
     if (status === 503) return true;
     return /high demand|overloaded|service unavailable|temporarily unavailable/i.test(msg || '');
 }
 
+// 429エラーが「1分あたりの上限(RPM)」か「1日あたりの上限(RPD)」かを、
+// レスポンスのエラーオブジェクト全体(quotaId等)から判別する(4.3)。
 function classifyQuotaError(errData) {
     const detail = JSON.stringify(errData || {});
     if (/PerDay|RPD|daily/i.test(detail)) return 'RPD';
@@ -593,10 +626,12 @@ function classifyQuotaError(errData) {
     return 'UNKNOWN';
 }
 
+// 429(クォータ超過)のメッセージは英語の技術的な文言が長いので、
+// 種別(RPM/RPD/不明)に応じて分かりやすい日本語の案内に出し分ける。
 function buildQuotaMessage(rawMsg, errData) {
     const kind = classifyQuotaError(errData);
     if (kind === 'RPD') {
-        return `今日のGemini無料枠を使い切ったニャ。日付が変わるまではAPIが使えないニャ。急ぎの時は☰メニューの「🆘手動で作ってもらう」を使ってニャ🙏`;
+        return `今日のGemini無料枠を使い切ったニャ。日付が変わる（日本時間の午後、太平洋時間の深夜0時）まではAPIが使えないニャ。急ぎの時は☰メニューの「🆘手動で作ってもらう」を使ってニャ🙏`;
     }
     const waitMatch = (rawMsg || '').match(/retry in ([\d.]+)s/i);
     const waitSec = waitMatch ? Math.ceil(parseFloat(waitMatch[1])) : null;
@@ -606,15 +641,21 @@ function buildQuotaMessage(rawMsg, errData) {
     return `Geminiの利用上限に達した可能性があるニャ。少し時間を置いてから試してみてニャ。すぐ試したい時は☰メニューの「🆘手動で作ってもらう」も使えるニャ🙏`;
 }
 
+/* Gemini API呼び出しの共通ヘルパー。
+   HTTPエラー・安全フィルタによるブロック・candidates欠落などを個別に検知して
+   原因がわかるメッセージを返す(以前は全部「エラーが発生しちゃった」に握りつぶされていた)。
+   maxOutputTokensも明示的に指定し、応答が長くなりがちな予定チャットでの途中切れを防ぐ。
+   一時的な混雑エラーは最大1回まで自動リトライする。
+   さらに、実際にGoogle側の上限に達する前に自主的に送信をセーブする(currentSafeLimit)。 */
 async function callGeminiAPI(promptText, maxOutputTokens, attempt) {
     attempt = attempt || 1;
     const MAX_ATTEMPTS = 2;
 
     if (attempt === 1) {
         pruneOldTimestamps();
-        const limit = learnedRpmLimit !== null ? Math.max(1, learnedRpmLimit - 1) : DEFAULT_SAFE_REQUEST_LIMIT;
-        if (requestTimestamps.length >= limit) {
+        if (requestTimestamps.length >= currentSafeLimit()) {
             const waitSec = secondsUntilNextSlot();
+            console.warn(`自主レート制限により送信をスキップしました(直近1分で${requestTimestamps.length}回、しきい値${currentSafeLimit()})`);
             return { ok: false, message: `直近1分間に送りすぎているニャ。無料枠を守るために${waitSec}秒ほど待ってから送ってほしいニャ🐾` };
         }
     }
@@ -639,21 +680,29 @@ async function callGeminiAPI(promptText, maxOutputTokens, attempt) {
                 if (errData && errData.error && errData.error.message) msg = errData.error.message;
             } catch (e) {}
             if (response.status === 429) {
+                console.error('Gemini APIクォータ超過:', msg);
                 const kind = classifyQuotaError(errData);
+                // RPM超過と判定できた場合のみ、直近60秒の送信回数を実際の上限として学習する
+                // (RPD超過の場合はこの情報に意味がないため学習対象にしない)
                 if (kind === 'RPM') {
                     learnedRpmLimit = requestTimestamps.length;
+                    console.warn(`RPM上限を学習しました: ${learnedRpmLimit}`);
                 }
                 return { ok: false, message: buildQuotaMessage(msg, errData) };
             }
             if (isRetryableError(response.status, msg) && attempt < MAX_ATTEMPTS) {
+                console.warn(`Gemini APIが混雑中のため再試行します(${attempt}回目): ${msg}`);
                 await sleep(attempt * 900);
                 return callGeminiAPI(promptText, maxOutputTokens, attempt + 1);
             }
+            console.error('Gemini APIエラー:', msg);
             return { ok: false, message: msg };
         }
 
         const data = await response.json();
+
         if (data.promptFeedback && data.promptFeedback.blockReason) {
+            console.error('Geminiにより入力がブロックされました:', data.promptFeedback);
             return { ok: false, message: `安全フィルタによりブロックされたニャ(${data.promptFeedback.blockReason})` };
         }
 
@@ -661,18 +710,1163 @@ async function callGeminiAPI(promptText, maxOutputTokens, attempt) {
         const textPart = candidate && candidate.content && candidate.content.parts && candidate.content.parts[0];
         if (!textPart || typeof textPart.text !== 'string') {
             const reason = candidate && candidate.finishReason ? `(finishReason: ${candidate.finishReason})` : '';
+            console.error('Geminiの応答にテキストが含まれていません:', data);
             return { ok: false, message: `AIからの応答が空だったニャ ${reason}` };
         }
 
         return { ok: true, text: textPart.text };
     } catch (error) {
         if (isRetryableError(0, error.message) && attempt < MAX_ATTEMPTS) {
+            console.warn(`通信エラーのため再試行します(${attempt}回目): ${error.message}`);
             await sleep(attempt * 900);
             return callGeminiAPI(promptText, maxOutputTokens, attempt + 1);
         }
+        console.error('Gemini API呼び出し中に例外が発生しました:', error);
         return { ok: false, message: error.message || String(error) };
     }
 }
 
+/* AIの応答からJSONブロックを取り出す。コードフェンスの表記ゆれや、
+   前後に余計な文章が混ざっているケースでもできるだけ救い出す。 */
 function extractJsonBlock(rawText) {
-    let t = (rawText || '').replace(/```json/gi, '').replace(/
+    let t = (rawText || '').replace(/```json/gi, '').replace(/```/g, '').trim();
+    const firstCurly = t.indexOf('{');
+    const firstSquare = t.indexOf('[');
+    let start = -1, openChar = '', closeChar = '';
+    if (firstCurly === -1 && firstSquare === -1) return t;
+    if (firstSquare === -1 || (firstCurly !== -1 && firstCurly < firstSquare)) {
+        start = firstCurly; openChar = '{'; closeChar = '}';
+    } else {
+        start = firstSquare; openChar = '['; closeChar = ']';
+    }
+    const end = t.lastIndexOf(closeChar);
+    if (end > start) return t.substring(start, end + 1);
+    return t;
+}
+
+/* 🌞 普遍的なマスター初期データ（時間軸破壊禁止） */
+const baseRoutines = [
+    { time: "07:00", title: "起床・お部屋リセット", detail: "カーテンを開ける/布団を整える/亀にエサ/猫にごはん/猫のトイレ掃除（実働20分・残り10分バッファ）", type: "routine", done: false, chime: false },
+    { time: "07:30", title: "お弁当作り 🍱", detail: "子供のお弁当準備（20分）※休憩なしでダイレクトに開始！", type: "routine", done: false, chime: false },
+    { time: "08:00", title: "朝食＆ゆったり休憩 ☕️", detail: "子供が出かけた後の朝ごはん。【最重要】食後にサプリを飲む。", type: "routine", done: false, chime: true },
+    { time: "09:00", title: "朝の集中家事＆身支度 🧹", detail: "食器洗い ➔ 洗濯機回す ➔ 掃除ロボ起動。その間に自身の洗面・身支度。", type: "routine", done: false, chime: true },
+    { time: "12:00", title: "ランチ休憩 🥗", detail: "調理・食事・片付けをゆったり含む（90分枠）", type: "routine", done: false, chime: false },
+    { time: "18:00", title: "夜の家事＆夕食の調理スタート 🐈", detail: "カーテンを閉める、猫にごはんをあげる、炊飯器のセット、夕食の調理を19:30までに終わらせる。", type: "routine", done: false, chime: false },
+    { time: "19:30", title: "夕食＆片付け 🍽️", detail: "家族での楽しい夕食タイムと、その後の食器洗い・シンク片付け。21:00までにのんびり完了させるニャ。", type: "routine", done: false, chime: true },
+    { time: "22:00", title: "入浴＆自由時間 🎵", detail: "お風呂にゆっくり浸かり、BTSの動画を見たり韓国語の勉強をするリラックスタイム。", type: "routine", done: false, chime: true },
+    { time: "23:50", title: "就寝 🌙", detail: "夜更かし厳禁・健康のための絶対死守ライン！", type: "routine", done: false, chime: true }
+];
+const MEAL_GREETING = { sender: 'nekosuke', text: '今日の夕飯、何にするニャ？食材や気分を教えてくれたら一緒に考えるニャ🐾' };
+
+let currentEvents = [];
+let tomorrowEvents = [];              // 前夜に仕込む翌日ドラフト(日付またぎで昇格、使い切り)
+let scheduleDisplayMode = 'today';    // 予定タブの表示対象: 'today' | 'tomorrow'(起動毎に'today'から開始)
+let mealMessages = [];
+let mealPlan = null;
+let mealMemo = [];
+let lastCheckedMinute = "";
+let importTargetTab = 'schedule';
+
+// 予定タブの編集・描画系関数はすべてこのヘルパー経由でデータにアクセスする。
+// scheduleDisplayModeに応じてcurrentEvents(今日)/tomorrowEvents(明日の下書き)を切り替えるだけの
+// 軽量なif分岐で対応し(今回は関数自体の共通化までは行わない。リファクタリング候補メモ参照)、
+// 各編集関数を「今日用」「明日用」に複製することを避ける。
+function activeEvents() {
+    return scheduleDisplayMode === 'tomorrow' ? tomorrowEvents : currentEvents;
+}
+function persistActiveEvents() {
+    if (scheduleDisplayMode === 'tomorrow') saveTomorrowEvents();
+    else saveToLocalStorage();
+}
+
+/* ============ 初期化・日付またぎ判定 ============ */
+function initApp() {
+    const todayStr = new Date().toDateString();
+    const savedDate = localStorage.getItem('DAILY_PLANNER_LAST_DATE');
+    const isNewDay = (savedDate !== todayStr);
+
+    const savedEvents = localStorage.getItem('DAILY_PLANNER_EVENTS');
+    const savedTomorrowRaw = localStorage.getItem('DAILY_PLANNER_EVENTS_TOMORROW');
+    const tomorrowDraft = savedTomorrowRaw ? JSON.parse(savedTomorrowRaw) : [];
+
+    if (isNewDay) {
+        // 前夜に翌日ドラフトが仕込まれていれば、それを「今日」のデータとして昇格させる。
+        // ドラフトが無ければ従来通りベースルーティンから始める。
+        if (tomorrowDraft.length > 0) {
+            currentEvents = tomorrowDraft;
+        } else {
+            currentEvents = JSON.parse(JSON.stringify(baseRoutines));
+        }
+        tomorrowEvents = []; // 昇格後は使い切りでクリアする
+        localStorage.removeItem('DAILY_PLANNER_EVENTS_TOMORROW');
+    } else if (!savedEvents) {
+        currentEvents = JSON.parse(JSON.stringify(baseRoutines));
+        tomorrowEvents = tomorrowDraft;
+    } else {
+        currentEvents = JSON.parse(savedEvents);
+        tomorrowEvents = tomorrowDraft;
+    }
+    scheduleDisplayMode = 'today'; // 起動時は常に「今日」表示から始める(セッション内のみの選択状態)
+
+    const savedMealChat = localStorage.getItem('DAILY_PLANNER_MEAL_CHAT');
+    if (isNewDay || !savedMealChat) {
+        mealMessages = [Object.assign({}, MEAL_GREETING)];
+    } else {
+        mealMessages = JSON.parse(savedMealChat);
+    }
+
+    if (isNewDay) {
+        mealPlan = null;
+    } else {
+        const savedPlan = localStorage.getItem('DAILY_PLANNER_MEAL_PLAN');
+        mealPlan = savedPlan ? JSON.parse(savedPlan) : null;
+    }
+
+    // 食材メモは日付をまたいでもリセットしない永続データ
+    const savedMemo = localStorage.getItem('DAILY_PLANNER_MEAL_MEMO');
+    mealMemo = savedMemo ? JSON.parse(savedMemo) : [];
+
+    // 学習型レート制限の学習値は日付が変わったらリセットする(Google側の無料枠仕様変更に備える)
+    if (isNewDay) learnedRpmLimit = null;
+
+    localStorage.setItem('DAILY_PLANNER_LAST_DATE', todayStr);
+    saveToLocalStorage();
+    saveMealChat();
+}
+
+function saveToLocalStorage() {
+    localStorage.setItem('DAILY_PLANNER_EVENTS', JSON.stringify(currentEvents));
+    localStorage.setItem('DAILY_PLANNER_LAST_DATE', new Date().toDateString());
+}
+function saveTomorrowEvents() {
+    localStorage.setItem('DAILY_PLANNER_EVENTS_TOMORROW', JSON.stringify(tomorrowEvents));
+}
+function saveMealChat() {
+    localStorage.setItem('DAILY_PLANNER_MEAL_CHAT', JSON.stringify(mealMessages));
+}
+function saveMealPlan() {
+    if (mealPlan) localStorage.setItem('DAILY_PLANNER_MEAL_PLAN', JSON.stringify(mealPlan));
+    else localStorage.removeItem('DAILY_PLANNER_MEAL_PLAN');
+}
+function saveMealMemo() {
+    localStorage.setItem('DAILY_PLANNER_MEAL_MEMO', JSON.stringify(mealMemo));
+}
+
+function updateDateDisplay() {
+    const d = new Date();
+    const weekDayStr = ["日", "月", "火", "水", "木", "金", "土"][d.getDay()];
+    document.getElementById('current-date').innerText = `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日（${weekDayStr}曜日）`;
+}
+
+function autoGrow(element) {
+    element.style.height = "auto";
+    element.style.height = (element.scrollHeight - 10) + "px";
+}
+
+/* iOS Safari ではアドレスバー等の増減で 100dvh がずれ、タブバー下に余白が出ることがあるため
+   実際のビューポート高さを都度 --app-height に反映する。
+   ページ読み込み直後の1回目の計測はレイアウトがまだ確定しておらず不正確なことがあるため、
+   load後とrequestAnimationFrameでも再計測して精度を上げる。 */
+function setAppHeight() {
+    const h = (window.visualViewport && window.visualViewport.height) ? window.visualViewport.height : window.innerHeight;
+    document.documentElement.style.setProperty('--app-height', h + 'px');
+}
+setAppHeight();
+requestAnimationFrame(setAppHeight);
+window.addEventListener('load', setAppHeight);
+window.addEventListener('resize', setAppHeight);
+window.addEventListener('orientationchange', setAppHeight);
+if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', setAppHeight);
+}
+
+/* iOS Safariは<textarea>等にフォーカスすると、bodyがfixedでもページ全体を
+   強制的にスクロールしようとすることがあり、これが「タブバーが上に上がってしまう」
+   崩れの原因になる。フォーカス/ブラー直後に window.scrollTo(0,0) で押し戻す。 */
+function pinScrollTop() {
+    if (window.scrollY !== 0 || window.scrollX !== 0) window.scrollTo(0, 0);
+}
+document.addEventListener('focusin', (e) => {
+    if (e.target && (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT')) {
+        setAppHeight();
+        pinScrollTop();
+        setTimeout(pinScrollTop, 50);
+        setTimeout(pinScrollTop, 300); // キーボードのアニメーション完了後にも念のため補正
+    }
+});
+document.addEventListener('focusout', () => {
+    setAppHeight();
+    setTimeout(pinScrollTop, 50);
+    setTimeout(pinScrollTop, 300);
+});
+
+document.addEventListener("click", () => {
+    try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (AudioContext) {
+            const ctx = new AudioContext();
+            if (ctx.state === "suspended") ctx.resume();
+        }
+    } catch (e) {}
+}, { once: true });
+
+/* ============ ヘッダーメニュー(日記・APIキー再設定) ============ */
+function toggleHeaderMenu(e) {
+    if (e) e.stopPropagation();
+    document.getElementById('header-menu').classList.toggle('open');
+}
+function closeHeaderMenu() {
+    document.getElementById('header-menu').classList.remove('open');
+}
+document.addEventListener('click', (e) => {
+    const menu = document.getElementById('header-menu');
+    const trigger = document.getElementById('nekosuke-face');
+    if (menu && menu.classList.contains('open') && !menu.contains(e.target) && e.target !== trigger) {
+        menu.classList.remove('open');
+    }
+});
+
+/* ============ タブ切り替え ============ */
+function showTab(tabId, btnEl) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById(tabId).classList.add('active');
+    document.querySelectorAll('.tab-bar-btn').forEach(b => b.classList.remove('active'));
+    btnEl.classList.add('active');
+    // タブバー自体がオーバーレイの下に隠れる設計のため、通常ここに来るのはオーバーレイが
+    // 閉じている時だけだが、念のため開いていれば閉じておく
+    if (chatOverlayOpen) closeChatOverlay();
+}
+
+// 予定タブの表示対象を「今日」⇄「明日の下書き」で切り替える。
+// 会話履歴(scheduleMessages)自体は今日/明日で分けず共有だが、
+// タイムライン表示とAIへ渡すデータ(activeEvents())だけが切り替わる。
+function switchDayMode(mode) {
+    scheduleDisplayMode = mode;
+    const isTomorrow = mode === 'tomorrow';
+    document.getElementById('day-toggle-today-btn').classList.toggle('active', !isTomorrow);
+    document.getElementById('day-toggle-tomorrow-btn').classList.toggle('active', isTomorrow);
+    document.getElementById('day-mode-banner-timeline').style.display = isTomorrow ? 'block' : 'none';
+    document.getElementById('day-mode-banner-chat').style.display = isTomorrow ? 'block' : 'none';
+    renderTimeline(); // 予定タブは常にタイムライン表示のため無条件で再描画してよい
+}
+
+/* ============ 半モーダルチャットオーバーレイ ============
+   予定タブ/献立タブ共通のチャットを、画面下からせり上がるオーバーレイとして開閉する。
+   #app-shell自体が--app-height(visualViewport連動)で高さ管理されているため、
+   このオーバーレイはbottom:0を指定するだけでキーボードの上に自然に位置する
+   (オーバーレイ自身に追加のキーボード監視ロジックは不要だった)。 */
+let chatOverlayOpen = false;
+let chatOverlayContext = null; // 'schedule' | 'meal'
+
+function openChatOverlay(context) {
+    chatOverlayOpen = true;
+    chatOverlayContext = context;
+
+    document.getElementById('schedule-view-chat').style.display = (context === 'schedule') ? 'flex' : 'none';
+    document.getElementById('schedule-chat-input-row').style.display = (context === 'schedule') ? 'flex' : 'none';
+    document.getElementById('meal-view-chat').style.display = (context === 'meal') ? 'flex' : 'none';
+    document.getElementById('meal-chat-input-row').style.display = (context === 'meal') ? 'flex' : 'none';
+    document.getElementById('chat-overlay-title').textContent = (context === 'schedule') ? '📅 予定について相談' : '🍳 献立について相談';
+
+    document.getElementById('chat-overlay').classList.add('open');
+    document.getElementById('chat-scrim').classList.add('open');
+
+    const room = document.getElementById(context === 'schedule' ? 'chat-talk-room' : 'meal-chat-talk-room');
+    room.scrollTop = room.scrollHeight;
+
+    updateChatFabIcon();
+}
+
+function closeChatOverlay() {
+    if (!chatOverlayOpen) return;
+    chatOverlayOpen = false;
+    document.getElementById('chat-overlay').classList.remove('open', 'typing');
+    document.getElementById('chat-scrim').classList.remove('open');
+    document.getElementById('chat-input').blur();
+    document.getElementById('meal-chat-input').blur();
+    updateChatFabIcon();
+}
+
+// 入力欄フォーカス中は、履歴を隠して入力欄だけの薄い帯に縮める
+function handleChatInputFocus() { document.getElementById('chat-overlay').classList.add('typing'); }
+function handleChatInputBlur() { document.getElementById('chat-overlay').classList.remove('typing'); }
+
+// 右下のチャットFAB。「今開いているタブ」に応じたチャットを開閉する。
+function toggleChatFab() {
+    const activeTabId = document.querySelector('.tab-panel.active').id;
+    const context = (activeTabId === 'tab-schedule') ? 'schedule' : 'meal';
+    if (chatOverlayOpen && chatOverlayContext === context) {
+        closeChatOverlay();
+    } else {
+        openChatOverlay(context);
+    }
+}
+const CHAT_FAB_ICON_SVG = `
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h9A2.5 2.5 0 0 1 18 5.5v6A2.5 2.5 0 0 1 15.5 14H10l-4 3v-3H6.5A2.5 2.5 0 0 1 4 11.5v-6z" fill="#ffffff"/>
+        <circle cx="8" cy="8.3" r="1.1" fill="var(--accent)"/>
+        <circle cx="11.3" cy="8.3" r="1.1" fill="var(--accent)"/>
+        <circle cx="14.6" cy="8.3" r="1.1" fill="var(--accent)"/>
+        <path d="M19.3 2.2l0.7 1.9 1.9 0.7-1.9 0.7-0.7 1.9-0.7-1.9-1.9-0.7 1.9-0.7z" fill="#ffffff"/>
+    </svg>`;
+const CHAT_FAB_ICON_CLOSE_SVG = `
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M5 5l14 14M19 5L5 19" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round"/>
+    </svg>`;
+
+function updateChatFabIcon() {
+    const fab = document.getElementById('chat-fab');
+    if (!fab) return;
+    fab.innerHTML = chatOverlayOpen ? CHAT_FAB_ICON_CLOSE_SVG : CHAT_FAB_ICON_SVG;
+    fab.setAttribute('aria-label', chatOverlayOpen ? '閉じる' : 'チャットを開く');
+    fab.style.transform = chatOverlayOpen ? 'scale(0.001)' : 'scale(1)';
+}
+
+const NEKOSUKE_TIPS = [
+    "この間にちょっと一息つくニャ☕",
+    "余裕があるうちに水分補給しておくニャ🐾",
+    "背伸びして肩をほぐすといいニャ〜",
+    "窓の外を見てリフレッシュするニャ",
+    "深呼吸をひとつ、ふーっとニャ",
+    "好きな音楽でも聴いてみるニャ🎵",
+    "ちょっとだけ歩いてみるニャ",
+    "お茶を一杯いれて休憩するニャ",
+    "遠くを見て目を休めるニャ👀",
+    "焦らず、自分のペースでいいニャ🐈",
+    "ここでひと踏ん張りニャ、応援してるニャ！",
+    "空いた時間は自由に使っていいニャ〜"
+];
+function pickNekosukeTip(seedKey) {
+    let hash = 0;
+    for (let i = 0; i < seedKey.length; i++) {
+        hash = (hash * 31 + seedKey.charCodeAt(i)) >>> 0;
+    }
+    return NEKOSUKE_TIPS[hash % NEKOSUKE_TIPS.length];
+}
+// タイトルから絵文字・記号を除いた自然な呼び名を作る
+function cleanTitle(t) {
+    return (t || '').replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u2190-\u21FF\u2B00-\u2BFF\uFE0F]+/gu, '').trim();
+}
+// 固定パターンの条件分岐だけでネコ助の「らしさ」を出す(AI呼び出し不要)
+function buildGapTip(diffMin, nextEv, curEvDone) {
+    if (curEvDone || !nextEv) return null;
+    const nextTitle = cleanTitle(nextEv.title) || nextEv.title;
+
+    if (nextEv.title.includes('就寝') && diffMin <= 90) {
+        return { face: '😾', text: `もうすぐ${nextEv.time}、はよ寝る準備をするニャ⏰` };
+    }
+    if (diffMin >= 120) {
+        return { face: '🐱', text: `自由時間ニャ、次は${nextEv.time}の${nextTitle}までのんびりしていいニャ🐾` };
+    }
+    if (diffMin >= 45) {
+        return { face: '🐱', text: pickNekosukeTip(new Date().toDateString() + nextEv.time) };
+    }
+    if (diffMin >= 20) {
+        return { face: '🙀', text: `そろそろ${nextTitle}の準備をぼちぼちするニャ` };
+    }
+    return null;
+}
+
+/* ============ 予定表タブ：タイムライン描画 ============ */
+function timeToMinutes(t) {
+    const parts = (t || "00:00").split(':').map(Number);
+    return (parts[0] || 0) * 60 + (parts[1] || 0);
+}
+function calcGapPx(diffMin) {
+    if (diffMin <= 0) return 14;
+    return Math.max(14, Math.min(90, 14 + diffMin * 0.85));
+}
+function nowMinutes() {
+    const n = new Date();
+    return n.getHours() * 60 + n.getMinutes();
+}
+function nowLabel() {
+    const n = new Date();
+    return `いま ${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`;
+}
+
+function buildNowIndicatorHtml() {
+    return `
+        <div class="now-indicator">
+            <div class="stub-col"><div class="now-dot"></div></div>
+            <div class="now-line"></div>
+            <div class="now-label">${nowLabel()}</div>
+        </div>`;
+}
+
+// 予定タブの行(buildRowHtml)と段取りタブの行(buildMealRowHtml)は、
+// チェックボックスの色・チャイムボタンの有無・呼び出す更新関数名以外はほぼ同一の構造だったため、
+// 共通の行描画関数に統合した(リファクタリング候補メモ2.1参照)。
+// cfg: { itemClass, checkColor, connectorColor, showChime, toggleFn, toggleChimeFn,
+//        updateTimeFn, updateTitleFn, updateDetailFn, deleteFn }
+function buildEditableRowHtml(item, idx, cfg) {
+    const isDone = !!item.done;
+    const checkStyle = cfg.checkColor ? ` style="border-color:${cfg.checkColor};"` : '';
+    const connectorStyle = cfg.connectorColor ? ` style="background:${cfg.connectorColor};opacity:0.5;"` : '';
+    let chimeHtml = '';
+    if (cfg.showChime) {
+        const chimeIcon = item.chime ? "🔔" : "🔕";
+        const chimeClass = item.chime ? "chime-toggle-btn active" : "chime-toggle-btn";
+        chimeHtml = `<button class="${chimeClass}" onclick="${cfg.toggleChimeFn}(${idx})">${chimeIcon}</button>`;
+    }
+    return `
+        <div class="timeline-row">
+            <div class="node-col ${isDone ? 'is-done-node' : ''}">
+                <label class="checkbox-container">
+                    <input type="checkbox" ${isDone ? 'checked' : ''} onclick="${cfg.toggleFn}(${idx})">
+                    <span class="checkmark"${checkStyle}></span>
+                </label>
+                <div class="connector-line"${connectorStyle}></div>
+            </div>
+            <div class="timeline-item ${cfg.itemClass} ${isDone ? 'is-done' : ''}">
+                <div class="item-center">
+                    <div class="time-row-wrapper">
+                        <input type="text" class="time-input" value="${item.time}" onchange="${cfg.updateTimeFn}(${idx}, this.value)">
+                        ${chimeHtml}
+                    </div>
+                    <div class="title-input" contenteditable="true" onblur="${cfg.updateTitleFn}(${idx}, this.innerText)">${item.title}</div>
+                    <div class="detail-input" contenteditable="true" onblur="${cfg.updateDetailFn}(${idx}, this.innerText)">${item.detail || ''}</div>
+                </div>
+                <button class="delete-btn" onclick="${cfg.deleteFn}(${idx})">✕</button>
+            </div>
+        </div>`;
+}
+
+// 予定タブ/段取りタブの再描画関数が共通で持っていた「入力中は再描画をスキップする」判定を共通化。
+function shouldSkipRerenderForEditing(containerId) {
+    const active = document.activeElement;
+    const container = document.getElementById(containerId);
+    if (active && container && container.contains(active)) {
+        return active.classList.contains('title-input') || active.classList.contains('detail-input');
+    }
+    return false;
+}
+
+function buildRowHtml(ev, idx) {
+    return buildEditableRowHtml(ev, idx, {
+        itemClass: ev.type,
+        showChime: true,
+        toggleFn: 'toggleItem',
+        toggleChimeFn: 'toggleChime',
+        updateTimeFn: 'updateTime',
+        updateTitleFn: 'updateTitle',
+        updateDetailFn: 'updateDetail',
+        deleteFn: 'deleteItem'
+    });
+}
+
+function buildNekosukeRowHtml(tip) {
+    return `
+        <div class="timeline-row nekosuke-row">
+            <div class="node-col">
+                <div class="nekosuke-gap-avatar">${tip.face}</div>
+                <div class="connector-line"></div>
+            </div>
+            <div class="nekosuke-gap-bubble">${tip.text}</div>
+        </div>`;
+}
+function buildPlainStubHtml(px, isDone) {
+    return `
+        <div class="gap-connector ${isDone ? 'is-done-gap' : ''}">
+            <div class="stub-col"><div class="stub-line" style="height:${px}px;"></div></div>
+            <div style="flex-grow:1;"></div>
+        </div>`;
+}
+// 2つのタスクの間(ギャップ)を描画する。「いま」インジケーターとネコ助のひと言は
+// 同じギャップ内に共存できる(実機の見た目イメージに準拠)
+function buildGapSegmentHtml(curEv, nextEv, nowMin) {
+    const curMin = timeToMinutes(curEv.time);
+    const nextMin = timeToMinutes(nextEv.time);
+    const diffMin = nextMin - curMin;
+    const totalPx = calcGapPx(diffMin);
+
+    const parts = [];
+    if (nowMin >= curMin && nowMin < nextMin) {
+        parts.push(buildNowIndicatorHtml());
+    }
+    const tip = buildGapTip(diffMin, nextEv, curEv.done);
+    if (tip) parts.push(buildNekosukeRowHtml(tip));
+
+    if (parts.length === 0) {
+        return buildPlainStubHtml(totalPx, curEv.done);
+    }
+
+    const edgePx = Math.max(10, Math.min(28, totalPx / (parts.length + 1)));
+    let html = buildPlainStubHtml(edgePx, curEv.done);
+    parts.forEach(p => { html += p; html += buildPlainStubHtml(edgePx, curEv.done); });
+    return html;
+}
+
+function renderTimeline() {
+    // 文字入力中(contenteditable/時刻入力)は再描画でフォーカスが飛ぶため、その間だけ更新をスキップ
+    // (チェックボックスや削除ボタンのクリックはブロックしない)
+    if (shouldSkipRerenderForEditing('timeline')) return;
+
+    const container = document.getElementById('timeline');
+    const events = activeEvents();
+    events.sort((a, b) => a.time.localeCompare(b.time));
+
+    // 「いま」インジケーターは今日表示の時だけ意味があるので、明日の下書き表示では出さない
+    const isTomorrow = scheduleDisplayMode === 'tomorrow';
+    const nowMin = isTomorrow ? -1 : nowMinutes();
+    let html = '';
+
+    if (events.length === 0) {
+        container.innerHTML = isTomorrow
+            ? '<div class="meal-plan-empty">明日の下書きはまだ空です。下のチャットでネコ助に相談するか、時刻・タイトルを直接追加してみてニャ🐾</div>'
+            : '<div class="meal-plan-empty">予定がまだありません。チャットタブでネコ助に相談してみるニャ🐾</div>';
+        return;
+    }
+
+    if (!isTomorrow && nowMin < timeToMinutes(events[0].time)) {
+        html += buildNowIndicatorHtml();
+    }
+
+    events.forEach((ev, idx) => {
+        html += buildRowHtml(ev, idx);
+        const isLast = idx === events.length - 1;
+        if (!isLast) {
+            html += buildGapSegmentHtml(ev, events[idx + 1], nowMin);
+        } else if (!isTomorrow && nowMin >= timeToMinutes(ev.time)) {
+            html += buildNowIndicatorHtml();
+        }
+    });
+
+    container.innerHTML = html;
+}
+
+function playChimeSound() {
+    try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        const ctx = new AudioContext();
+        const osc1 = ctx.createOscillator(); const gain1 = ctx.createGain();
+        osc1.type = 'sine'; osc1.frequency.setValueAtTime(880, ctx.currentTime);
+        gain1.gain.setValueAtTime(0.2, ctx.currentTime); gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+        osc1.connect(gain1); gain1.connect(ctx.destination);
+        const osc2 = ctx.createOscillator(); const gain2 = ctx.createGain();
+        osc2.type = 'sine'; osc2.frequency.setValueAtTime(659.25, ctx.currentTime + 0.25);
+        gain2.gain.setValueAtTime(0, ctx.currentTime); gain2.gain.setValueAtTime(0.2, ctx.currentTime + 0.25);
+        gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.0);
+        osc2.connect(gain2); gain2.connect(ctx.destination);
+        osc1.start(ctx.currentTime); osc1.stop(ctx.currentTime + 0.6);
+        osc2.start(ctx.currentTime + 0.25); osc2.stop(ctx.currentTime + 1.0);
+    } catch (e) {}
+}
+
+function startTimePatrol() {
+    setInterval(() => {
+        const now = new Date();
+        const currentStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+        if (currentStr !== lastCheckedMinute) {
+            lastCheckedMinute = currentStr;
+            const shouldRing = currentEvents.some(ev => ev.chime && !ev.done && ev.time === currentStr);
+            if (shouldRing) playChimeSound();
+            renderTimeline(); // 現在時刻インジケーターの位置を更新
+        }
+    }, 1000);
+}
+
+function formatTimeInput(val) {
+    let str = val.replace(/[０-９]/g, (s) => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
+    let nums = str.replace(/[^0-9]/g, '');
+    if (nums.length === 4) return nums.substring(0, 2) + ":" + nums.substring(2, 4);
+    return val;
+}
+
+function updateTime(idx, newTime) { activeEvents()[idx].time = formatTimeInput(newTime); renderTimeline(); persistActiveEvents(); }
+function updateTitle(idx, newTitle) { activeEvents()[idx].title = newTitle; persistActiveEvents(); }
+function updateDetail(idx, newDetail) { activeEvents()[idx].detail = newDetail; persistActiveEvents(); }
+function deleteItem(idx) { activeEvents().splice(idx, 1); renderTimeline(); persistActiveEvents(); }
+function toggleItem(idx) {
+    const events = activeEvents();
+    const ev = events[idx];
+    const wasDone = ev.done;
+    ev.done = !wasDone;
+    renderTimeline();
+    persistActiveEvents();
+    if (!wasDone && ev.done) showPraisePop(ev);
+}
+
+// タスク完了時に「えらいニャ🐾」がポップして消えるマイクロインタラクション
+function showPraisePop(ev) {
+    const container = document.getElementById('timeline');
+    if (!container) return;
+    const newIdx = activeEvents().indexOf(ev);
+    if (newIdx === -1) return;
+    const itemRows = container.querySelectorAll('.timeline-row:not(.nekosuke-row)');
+    const targetRow = itemRows[newIdx];
+    const card = targetRow && targetRow.querySelector('.timeline-item');
+    if (!card) return;
+    const badge = document.createElement('div');
+    badge.className = 'praise-pop';
+    badge.textContent = 'えらいニャ🐾';
+    card.appendChild(badge);
+    setTimeout(() => badge.remove(), 1300);
+}
+function toggleChime(idx) { activeEvents()[idx].chime = !activeEvents()[idx].chime; playChimeSound(); renderTimeline(); persistActiveEvents(); }
+
+// mode省略時は'today'扱い(手動インポートは常に今日の予定を対象とする既存仕様を維持)。
+// チャットの反映ボタンは、その回答を生成した時点のscheduleDisplayModeを埋め込んで呼び出す。
+function applyProposedSchedule(buttonEl, jsonStr, mode) {
+    const targetMode = mode || 'today';
+    const baseArr = (targetMode === 'tomorrow') ? tomorrowEvents : currentEvents;
+    const proposed = JSON.parse(decodeURIComponent(jsonStr));
+    const doneTitles = baseArr.filter(e => e.done).map(e => e.title);
+
+    proposed.forEach(newEvent => {
+        if (doneTitles.includes(newEvent.title)) newEvent.done = true;
+        const matchOld = baseArr.find(old => old.title === newEvent.title);
+        if (matchOld && matchOld.chime !== undefined) newEvent.chime = matchOld.chime;
+    });
+
+    if (targetMode === 'tomorrow') {
+        tomorrowEvents = proposed;
+        saveTomorrowEvents();
+    } else {
+        currentEvents = proposed;
+        saveToLocalStorage();
+    }
+    // 表示中のモードと一致する場合のみ即座に再描画する(裏側のモードを更新しても見た目は変えない)
+    if (targetMode === scheduleDisplayMode) renderTimeline();
+
+    // 手動インポート経由の場合はbuttonElがnullで渡ってくるためガードする
+    if (buttonEl) {
+        buttonEl.disabled = true;
+        buttonEl.innerText = "反映しました ✓";
+    }
+}
+
+/* ============ チャットタブ（予定相談） ============ */
+// 予定チャットの会話履歴(セッション内のみ・従来通りリロードでリセット)
+let scheduleMessages = [
+    { sender: 'nekosuke', text: 'Mihoさん、今日もお疲れ様ニャ！1日の段取りを一緒に育てるニャ🐾 予定の追加や変更があれば、いつでもここに話しかけてニャ〜！' }
+];
+
+function appendChatBubble(sender, text, isUser, rawJson, showImportShortcut) {
+    const room = document.getElementById('chat-talk-room');
+    const row = document.createElement('div');
+    row.className = `chat-bubble-row ${isUser ? 'user-side' : ''}`;
+    if (isUser) {
+        row.innerHTML = `<div class="chat-msg-body"><div class="bubble">${text}</div></div>`;
+    } else {
+        let buttonHtml = '';
+        if (rawJson) {
+            const encodedJson = encodeURIComponent(JSON.stringify(rawJson));
+            buttonHtml = `
+                <div class="apply-wrapper">
+                    <button class="apply-btn" onclick="applyProposedSchedule(this, '${encodedJson}', '${scheduleDisplayMode}')">
+                        <span>📅 この案を${scheduleDisplayMode === 'tomorrow' ? '明日の下書き' : 'タイムライン'}に反映する🐾</span>
+                    </button>
+                </div>`;
+        }
+        if (showImportShortcut) {
+            buttonHtml += `
+                <div class="import-shortcut-wrapper">
+                    <button class="import-shortcut-btn" onclick="openManualImportModal('schedule')">🆘 手動で作ってもらう</button>
+                </div>`;
+        }
+        row.innerHTML = `<div class="chat-avatar">🐱</div><div class="chat-msg-body"><div class="chat-sender-name">ネコ助</div><div class="bubble">${text}${buttonHtml}</div></div>`;
+    }
+    room.appendChild(row);
+    room.scrollTop = room.scrollHeight;
+}
+
+// 会話履歴への記録も同時に行うラッパー(AIへの文脈渡しに使う)
+function appendChatBubbleLive(sender, text, isUser, rawJson, showImportShortcut) {
+    scheduleMessages.push({ sender: isUser ? 'user' : 'nekosuke', text: text });
+    appendChatBubble(sender, text, isUser, rawJson, showImportShortcut);
+}
+
+async function handleSend() {
+    const input = document.getElementById('chat-input');
+    const sendBtn = document.getElementById('schedule-send-btn');
+    if (sendBtn && sendBtn.disabled) return; // 送信中の連打による多重送信を防止
+    const text = input.value.trim();
+    if (!text) return;
+    if (!API_KEY) { alert("APIキーが設定されていません。"); return; }
+    input.value = ''; input.style.height = "auto";
+    appendChatBubbleLive("ユーザー", text, true);
+    document.getElementById('status').style.display = 'block';
+    if (sendBtn) sendBtn.disabled = true;
+
+    // 直近の会話履歴を渡して、話の流れを踏まえた自然な受け答えができるようにする
+    const historyText = scheduleMessages.slice(-10).map(m => `${m.sender === 'user' ? 'ユーザー' : 'ネコ助'}: ${m.text}`).join('\n');
+
+    // 明日の下書きモードの場合、AIには「相談対象は明日である」ことを明示する
+    // (会話履歴自体は今日/明日で分けず共有だが、渡すタイムラインデータだけをモードに応じて切り替える)
+    const isTomorrowMode = scheduleDisplayMode === 'tomorrow';
+    const targetDayLabel = isTomorrowMode ? '明日' : '今日';
+    const systemPrompt = `
+    あなたはユーザーのスケジュール設計を助ける優秀なAIアシスタント「ネコ助」です。
+    語尾には必ず「〜ニャ」「〜ニャ〜🐾」をつけて、おしゃべりしてください。
+    これまでの会話の流れを踏まえて、自然に受け答えしてください。
+    現在ユーザーが相談しているのは「${targetDayLabel}」の予定です。
+    【${targetDayLabel}のタイムラインデータ】: ${JSON.stringify(activeEvents())}
+    【生成ルール】:
+    1. 予定の追加・削除・時刻変更など、タイムラインに具体的な変更を提案する時だけ、コメントの後に『===DATA===』を挟んで更新後の全予定JSONを出力してください。
+    2. 雑談・質問への返答・相談段階のやり取りなど、タイムラインを変更しない返答の場合は、JSONを出力せずコメントのみ返してください（===DATA===は付けないでください）。
+    3. 午後は18:00まで基本的に自由時間のため12:00〜18:00の間はタイムラインを空けてください。
+    4. ベースルーティン[起床(07:00), お弁当(07:30), 朝食(08:00), 朝家事(09:00), ランチ(12:00), 夜家事調理(18:00), 夕食片付け(19:30), 入浴(22:00), 就寝(23:50)]は絶対削除禁止。
+    `;
+
+    try {
+        const result = await callGeminiAPI(systemPrompt + "\n\n【これまでの会話】\n" + historyText + "\n\nユーザーの最新の入力: " + text, 4096);
+        if (!result.ok) {
+            appendChatBubbleLive("ネコ助", `ごめんニャ、エラーが発生したニャ……（${result.message}）`, false, null, true);
+        } else {
+            const parts = result.text.split('===DATA===');
+            if (parts.length === 2) {
+                const jsonText = extractJsonBlock(parts[1]);
+                try {
+                    const parsedJson = JSON.parse(jsonText);
+                    appendChatBubbleLive("ネコ助", parts[0].trim(), false, parsedJson);
+                } catch (parseErr) {
+                    console.error('予定JSONの解析に失敗しました:', parseErr, jsonText);
+                    appendChatBubbleLive("ネコ助", (parts[0].trim() || "うまくまとめられなかったニャ…") + "\n\n（反映用データの形式が崩れていたので、反映ボタンは出せなかったニャ。もう一度お願いしてほしいニャ🙏）");
+                }
+            } else {
+                appendChatBubbleLive("ネコ助", result.text.trim() || "……ちょっと考え中ニャ、もう一度話しかけてほしいニャ。");
+            }
+        }
+    } finally {
+        document.getElementById('status').style.display = 'none';
+        if (sendBtn) sendBtn.disabled = false;
+    }
+}
+
+/* ============ 献立＆調理タブ ============ */
+function renderMealChatRoom() {
+    const room = document.getElementById('meal-chat-talk-room');
+    room.innerHTML = '';
+    mealMessages.forEach(m => appendMealBubbleFromData(m));
+    room.scrollTop = room.scrollHeight;
+}
+
+function appendMealBubbleFromData(m) {
+    const room = document.getElementById('meal-chat-talk-room');
+    const row = document.createElement('div');
+    const isUser = m.sender === 'user';
+    row.className = `chat-bubble-row ${isUser ? 'user-side' : ''}`;
+    if (isUser) {
+        row.innerHTML = `<div class="chat-msg-body"><div class="bubble">${m.text}</div></div>`;
+    } else {
+        const planNote = m.plan ? `<div class="plan-note">🍳 段取りタブに反映したニャ！</div>` : '';
+        const memoNote = m.memoNote ? `<div class="memo-note">📝 ${m.memoNote}をメモしたニャ</div>` : '';
+        const importShortcut = m.showImportShortcut ? `<div class="import-shortcut-wrapper"><button class="import-shortcut-btn" onclick="openManualImportModal('meal')">🆘 手動で作ってもらう</button></div>` : '';
+        row.innerHTML = `<div class="chat-avatar">🐱</div><div class="chat-msg-body"><div class="chat-sender-name">ネコ助</div><div class="bubble">${m.text}${planNote}${memoNote}${importShortcut}</div></div>`;
+    }
+    room.appendChild(row);
+}
+
+function appendMealBubbleLive(sender, text, isUser, plan, memoNote, showImportShortcut) {
+    const data = { sender: isUser ? 'user' : 'nekosuke', text: text, plan: plan || null, memoNote: memoNote || null, showImportShortcut: showImportShortcut || false };
+    mealMessages.push(data);
+    appendMealBubbleFromData(data);
+    const room = document.getElementById('meal-chat-talk-room');
+    room.scrollTop = room.scrollHeight;
+    saveMealChat();
+}
+
+function addMealMemoItem(ingredientName) {
+    mealMemo.push({ id: 'm_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6), ingredient: ingredientName, priority: null });
+    saveMealMemo();
+}
+
+function buildMealSystemPrompt() {
+    const highPriorityMemo = mealMemo.filter(m => m.priority === 'high' || m.priority === 'mid')
+        .map(m => `${m.priority === 'high' ? '🔴' : '🟡'}${m.ingredient}`).join('、');
+    const memoContext = highPriorityMemo ? `\n【ユーザーが使いたいと思っている食材】: ${highPriorityMemo}` : '';
+    return `
+あなたはユーザーの夕食の献立と調理の段取りを考える、優秀なAIアシスタント「ネコ助」です。
+語尾には「〜ニャ」「〜ニャ〜🐾」をつけてください。
+食材や好みの相談に自由に応じ、献立が決まったら「効率よく段取りを組んで」、
+以下のフォーマットでコメントの後に『===PLAN===』を挟んでJSONを出力してください：
+{ "dish": "...", "steps": [{ "time": "...", "title": "...", "detail": "..." }] }
+段取りがまだ確定していない相談段階では、JSONを出力せずコメントのみ返してください。
+会話の中で食材名が出てきたら、コメントの後に『===MEMO===』を挟んで
+{ "ingredients": ["鶏むね肉"] } の形式でJSONを出力してください（複数可）。
+このJSONには優先度は含めないでください（優先度はユーザーがアプリ側で設定します）。
+段取り確定時の『===PLAN===』とは別に、必要であれば同じ応答内に両方含めてもかまいません。${memoContext}
+`;
+}
+
+async function handleMealSend() {
+    const input = document.getElementById('meal-chat-input');
+    const sendBtn = document.getElementById('meal-send-btn');
+    if (sendBtn && sendBtn.disabled) return; // 送信中の連打による多重送信を防止
+    const text = input.value.trim();
+    if (!text) return;
+    if (!API_KEY) { alert("APIキーが設定されていません。"); return; }
+    input.value = ''; input.style.height = "auto";
+    appendMealBubbleLive('user', text, true);
+    document.getElementById('meal-status').style.display = 'block';
+    if (sendBtn) sendBtn.disabled = true;
+
+    // 直近の会話履歴のみ渡す(予定表データは一切含めない)
+    const historyText = mealMessages.slice(-10).map(m => `${m.sender === 'user' ? 'ユーザー' : 'ネコ助'}: ${m.text}`).join('\n');
+
+    try {
+        const result = await callGeminiAPI(buildMealSystemPrompt() + "\n\n【これまでの会話】\n" + historyText + "\n\nユーザーの最新の入力: " + text, 2048);
+        if (!result.ok) {
+            appendMealBubbleLive('nekosuke', `ごめんニャ、エラーが発生したニャ……（${result.message}）`, false, null, null, true);
+        } else {
+            // まず===MEMO===を切り出し、その手前のテキストを===PLAN===判定に使う(順序はどちらが先でも対応)
+            let workingText = result.text;
+            let memoNoteText = null;
+            const memoParts = workingText.split('===MEMO===');
+            if (memoParts.length === 2) {
+                try {
+                    const memoJson = JSON.parse(extractJsonBlock(memoParts[1]));
+                    const names = memoJson.ingredients || [];
+                    names.forEach(name => addMealMemoItem(name));
+                    if (names.length > 0) memoNoteText = names.join('、');
+                    workingText = memoParts[0];
+                } catch (memoErr) {
+                    console.error('食材メモJSONの解析に失敗しました:', memoErr, memoParts[1]);
+                    workingText = memoParts[0];
+                }
+            }
+
+            const parts = workingText.split('===PLAN===');
+            if (parts.length === 2) {
+                const jsonText = extractJsonBlock(parts[1]);
+                try {
+                    const plan = JSON.parse(jsonText);
+                    mealPlan = plan;
+                    saveMealPlan();
+                    appendMealBubbleLive('nekosuke', parts[0].trim(), false, plan, memoNoteText);
+                    renderMealPlan();
+                    closeChatOverlay(); // 段取りが完成したら、チャットを閉じて背後の一覧を見せる
+                } catch (parseErr) {
+                    console.error('段取りJSONの解析に失敗しました:', parseErr, jsonText);
+                    appendMealBubbleLive('nekosuke', (parts[0].trim() || "うまくまとめられなかったニャ…") + "\n\n（段取りデータの形式が崩れていたので反映できなかったニャ。もう一度お願いしてほしいニャ🙏）", false, null, memoNoteText);
+                }
+            } else {
+                appendMealBubbleLive('nekosuke', workingText.trim(), false, null, memoNoteText);
+            }
+        }
+    } finally {
+        document.getElementById('meal-status').style.display = 'none';
+        if (sendBtn) sendBtn.disabled = false;
+    }
+}
+
+function buildMealRowHtml(step, idx) {
+    return buildEditableRowHtml(step, idx, {
+        itemClass: 'cooking',
+        checkColor: 'var(--cooking)',
+        connectorColor: 'var(--cooking)',
+        showChime: false,
+        toggleFn: 'toggleMealStep',
+        updateTimeFn: 'updateMealStepTime',
+        updateTitleFn: 'updateMealStepTitle',
+        updateDetailFn: 'updateMealStepDetail',
+        deleteFn: 'deleteMealStep'
+    });
+}
+
+function updateMealStepTime(idx, newTime) { mealPlan.steps[idx].time = formatTimeInput(newTime); renderMealPlan(); saveMealPlan(); }
+function updateMealStepTitle(idx, newTitle) { mealPlan.steps[idx].title = newTitle; saveMealPlan(); }
+function updateMealStepDetail(idx, newDetail) { mealPlan.steps[idx].detail = newDetail; saveMealPlan(); }
+function deleteMealStep(idx) { mealPlan.steps.splice(idx, 1); renderMealPlan(); saveMealPlan(); }
+function toggleMealStep(idx) { mealPlan.steps[idx].done = !mealPlan.steps[idx].done; renderMealPlan(); saveMealPlan(); }
+
+function renderMealPlan() {
+    // 予定タブのrenderTimeline()と同様、入力中(contenteditable/時刻入力)は再描画でフォーカスが飛ぶため更新をスキップする
+    if (shouldSkipRerenderForEditing('meal-plan-content')) return;
+
+    const container = document.getElementById('meal-plan-content');
+    if (!mealPlan || !mealPlan.steps || mealPlan.steps.length === 0) {
+        container.innerHTML = '<div class="meal-plan-empty">まだ段取りが決まっていないニャ。チャットで献立を相談してニャ🐾</div>';
+        return;
+    }
+    let html = `
+        <div class="meal-plan-header">
+            <div class="dish-label">今日の献立</div>
+            <h2>${mealPlan.dish || ''}</h2>
+        </div>
+        <div class="timeline-wrap" style="padding-top:6px;">`;
+    mealPlan.steps.forEach((step, idx) => {
+        html += buildMealRowHtml(step, idx);
+        if (idx < mealPlan.steps.length - 1) {
+            const diff = timeToMinutes(mealPlan.steps[idx + 1].time) - timeToMinutes(step.time);
+            const px = calcGapPx(diff);
+            html += `<div class="gap-connector"><div class="stub-col"><div class="stub-line" style="height:${px}px;background:var(--cooking);opacity:0.5;"></div></div><div style="flex-grow:1;"></div></div>`;
+        }
+    });
+    html += `</div>`;
+    container.innerHTML = html;
+}
+
+/* ============ 日記出力機能 ============ */
+function openDiaryModal() {
+    document.getElementById('diary-overlay').classList.add('active');
+    document.getElementById('diary-body').innerHTML = `
+        <p style="font-size:13px;color:var(--text-sub);line-height:1.6;margin-top:0;">
+            チャットで追加・変更した予定と今日の献立から、その日の記録を短くまとめます（毎日固定のルーティンは含みません）。NotebookLMなどへの貼り付けにどうぞ。
+        </p>
+        <button class="diary-gen-btn" onclick="generateDiary()">✍️ 記録を生成する</button>
+    `;
+}
+function closeDiaryModal() {
+    document.getElementById('diary-overlay').classList.remove('active');
+}
+
+function buildDiaryDateHeader() {
+    const d = new Date();
+    const weekDayStr = ["日", "月", "火", "水", "木", "金", "土"][d.getDay()];
+    return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日（${weekDayStr}）`;
+}
+
+async function generateDiary() {
+    if (!API_KEY) { alert("APIキーが設定されていません。"); return; }
+    document.getElementById('diary-body').innerHTML = `<div class="diary-loading">今日の記録を整理しています...</div>`;
+
+    // 毎日固定のルーティン(type: routine)は対象外。チャットで追加・変更された予定のみを扱う。
+    const chatAddedEvents = currentEvents.filter(e => e.type !== 'routine');
+    const doneList = chatAddedEvents.filter(e => e.done).map(e => e.title);
+    const notDoneList = chatAddedEvents.filter(e => !e.done).map(e => e.title);
+    const todayMenu = (mealPlan && mealPlan.dish) ? mealPlan.dish : '';
+
+    const prompt = `
+    以下の情報をもとに、その日にあった出来事を淡々と短く記録する文章を書いてください。
+    ・特定の人物やキャラクターの一人称・語尾などの口調は使わず、客観的な記録文体にしてください（「〜だった」「〜した」等の淡々とした地の文）。
+    ・150〜220字程度。見出しや箇条書き、絵文字、マークダウンは使わないでください。本文のみを出力してください。
+    ・毎日固定のルーティン作業は記録対象外です。以下に挙げた項目のみを扱ってください。
+    ・すべての項目が「(なし)」の場合は、「この日は特に記録すべき追加の予定はなかった。」という趣旨の一文のみを書いてください。
+    【今日、追加・変更されて完了した予定】: ${doneList.length > 0 ? doneList.join('、') : '(なし)'}
+    【今日、追加されたが未完了の予定】: ${notDoneList.length > 0 ? notDoneList.join('、') : '(なし)'}
+    【今日の夕食メニュー】: ${todayMenu || '(なし)'}
+    `;
+
+    const result = await callGeminiAPI(prompt, 1024);
+    if (!result.ok) {
+        document.getElementById('diary-body').innerHTML = `<div class="diary-loading">エラーが発生しました（${result.message}）。もう一度試してください。</div>`;
+        return;
+    }
+    const fullText = `${buildDiaryDateHeader()}\n\n${result.text.trim()}`;
+    renderDiaryResult(fullText);
+}
+
+function renderDiaryResult(diaryText) {
+    document.getElementById('diary-body').innerHTML = `
+        <textarea id="diary-textarea" class="diary-textarea">${diaryText}</textarea>
+        <p style="font-size:11px;color:var(--text-sub);margin:6px 2px 0 2px;">↑ コピー・保存の前に自由に編集できます</p>
+        <div class="diary-actions">
+            <button class="diary-action-btn diary-copy-btn" onclick="copyDiaryText()">📋 コピー</button>
+            <button class="diary-action-btn diary-save-btn" onclick="downloadDiaryText()">💾 テキストで保存</button>
+        </div>
+    `;
+}
+
+function copyDiaryText() {
+    const ta = document.getElementById('diary-textarea');
+    navigator.clipboard.writeText(ta.value).then(() => {
+        alert('コピーしました');
+    }).catch(() => {
+        ta.select();
+        document.execCommand('copy');
+        alert('コピーしました');
+    });
+}
+
+function downloadDiaryText() {
+    const ta = document.getElementById('diary-textarea');
+    const d = new Date();
+    const dateStr = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+    const filename = `DailyPlannerAI_日記_${dateStr}.txt`;
+    const blob = new Blob([ta.value], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+/* ============ 食材メモ機能 ============ */
+function openMemoModal() {
+    document.getElementById('memo-overlay').classList.add('active');
+    renderMemoModal();
+}
+function closeMemoModal() {
+    document.getElementById('memo-overlay').classList.remove('active');
+}
+function priorityRank(p) {
+    if (p === 'high') return 0;
+    if (p === 'mid') return 1;
+    if (p === 'low') return 2;
+    return 3;
+}
+function priorityIcon(p) {
+    if (p === 'high') return '🔴 高';
+    if (p === 'mid') return '🟡 中';
+    if (p === 'low') return '🟢 低';
+    return '⚪ 未設定';
+}
+function renderMemoModal() {
+    const body = document.getElementById('memo-body');
+    const sorted = [...mealMemo].sort((a, b) => priorityRank(a.priority) - priorityRank(b.priority));
+
+    let listHtml = '';
+    if (sorted.length === 0) {
+        listHtml = '<div class="memo-empty">まだメモがないニャ。献立チャットで食材を話しかけるか、下から直接追加してほしいニャ🐾</div>';
+    } else {
+        listHtml = '<div class="memo-list">' + sorted.map(m => `
+            <div class="memo-row" onclick="togglePriority('${m.id}')">
+                <span class="memo-priority-icon">${priorityIcon(m.priority)}</span>
+                <span class="memo-name">${m.ingredient}</span>
+                <button class="memo-remove-btn" onclick="event.stopPropagation(); removeMemoItem('${m.id}')">✕</button>
+            </div>`).join('') + '</div>';
+    }
+
+    body.innerHTML = `
+        <p style="font-size:12px;color:var(--text-sub);line-height:1.6;margin-top:0;">タップで優先度を切り替えできます（未設定→高→中→低→未設定）</p>
+        ${listHtml}
+        <div class="memo-add-row">
+            <input type="text" id="memo-add-input" class="memo-add-input" placeholder="食材名を入力...">
+            <button class="memo-add-btn" onclick="handleMemoAddClick()">追加</button>
+        </div>
+    `;
+}
+function togglePriority(id) {
+    const item = mealMemo.find(m => m.id === id);
+    if (!item) return;
+    const order = [null, 'high', 'mid', 'low'];
+    item.priority = order[(order.indexOf(item.priority) + 1) % order.length];
+    saveMealMemo();
+    renderMemoModal();
+}
+function removeMemoItem(id) {
+    mealMemo = mealMemo.filter(m => m.id !== id);
+    saveMealMemo();
+    renderMemoModal();
+}
+function addMemoItemManual(name) {
+    if (name && name.trim()) {
+        addMealMemoItem(name.trim());
+        renderMemoModal();
+    }
+}
+function handleMemoAddClick() {
+    const input = document.getElementById('memo-add-input');
+    addMemoItemManual(input.value);
+    input.value = '';
+}
+
+/* ============ 手動インポート機能 ============ */
+function openManualImportModal(initialTarget) {
+    importTargetTab = initialTarget || 'schedule';
+    document.getElementById('import-overlay').classList.add('active');
+    renderImportModal();
+}
+function closeImportModal() {
+    document.getElementById('import-overlay').classList.remove('active');
+}
+function buildScheduleImportPrompt() {
+    return `あなたはユーザーのスケジュール設計を助けるアシスタントです。
+【現在のタイムラインデータ】: ${JSON.stringify(currentEvents)}
+【ユーザーの依頼】: （ここにあなたの要望を書いてください）
+
+回答は、まずコメントを書き、その後に『===DATA===』を挟んで
+更新後の全予定JSON（time, title, detail, type, done, chimeを含む配列）を出力してください。
+以下のベースルーティンは絶対に削除しないでください：
+起床(07:00), お弁当(07:30), 朝食(08:00), 朝家事(09:00), ランチ(12:00), 夜家事調理(18:00), 夕食片付け(19:30), 入浴(22:00), 就寝(23:50)
+回答が終わったら、コメント部分と『===DATA===』以降のJSON部分を両方まとめてコピーし、このアプリに戻って貼り付けてください。`;
+}
+function buildMealImportPrompt() {
+    const memoText = mealMemo.length > 0
+        ? mealMemo.map(m => `${m.ingredient}${m.priority ? '(' + m.priority + ')' : ''}`).join('、')
+        : 'なし';
+    return `あなたはユーザーの夕食の献立と調理の段取りを考えるアシスタントです。
+【使いたい食材メモ】: ${memoText}
+【ユーザーの依頼】: （ここに献立の要望を書いてください）
+
+献立が決まったら、コメントの後に『===PLAN===』を挟んで
+{ "dish": "...", "steps": [{ "time": "...", "title": "...", "detail": "..." }] } の形式でJSONを出力してください。
+回答が終わったら、コメント部分と『===PLAN===』以降のJSON部分を両方まとめてコピーし、このアプリに戻って貼り付けてください。`;
+}
+function switchImportTarget(target) {
+    importTargetTab = target;
+    renderImportModal();
+}
+function renderImportModal() {
+    const body = document.getElementById('import-body');
+    const promptText = importTargetTab === 'schedule' ? buildScheduleImportPrompt() : buildMealImportPrompt();
+    body.innerHTML = `
+        <div class="import-target-tabs">
+            <button class="import-target-tab-btn ${importTargetTab === 'schedule' ? 'active' : ''}" onclick="switchImportTarget('schedule')">📅 予定</button>
+            <button class="import-target-tab-btn ${importTargetTab === 'meal' ? 'active' : ''}" onclick="switchImportTarget('meal')">🍳 献立</button>
+        </div>
+        <div class="import-step-label">① 下のプロンプトをコピーして、Geminiアプリ（gemini.google.com等）に貼り付けてください</div>
+        <textarea id="import-prompt-textarea" class="import-prompt-textarea" readonly>${promptText}</textarea>
+        <div class="diary-actions" style="margin-top:8px;">
+            <button class="diary-action-btn diary-copy-btn" onclick="copyImportPrompt()">📋 コピー</button>
+        </div>
+        <div class="import-step-label">② Geminiアプリの回答をここに貼り付けてください</div>
+        <textarea id="import-paste-textarea" class="import-paste-textarea" placeholder="ここに回答を貼り付け..."></textarea>
+        <div id="import-error-area"></div>
+        <div class="diary-actions">
+            <button class="diary-action-btn diary-save-btn" onclick="handleApplyManualImportClick()">反映する</button>
+        </div>
+    `;
+}
+function copyImportPrompt() {
+    const ta = document.getElementById('import-prompt-textarea');
+    navigator.clipboard.writeText(ta.value).then(() => {
+        alert('コピーしました');
+    }).catch(() => {
+        ta.select();
+        document.execCommand('copy');
+        alert('コピーしました');
+    });
+}
+function showImportError() {
+    const area = document.getElementById('import-error-area');
+    if (area) area.innerHTML = `<div class="import-error-msg">形式が崩れていたニャ、もう一度試してほしいニャ🙏</div>`;
+}
+function handleApplyManualImportClick() {
+    const pasteEl = document.getElementById('import-paste-textarea');
+    applyManualImport(importTargetTab, pasteEl.value);
+}
+function applyManualImport(target, pastedText) {
+    if (target === 'schedule') {
+        const parts = pastedText.split('===DATA===');
+        if (parts.length !== 2) { showImportError(); return; }
+        try {
+            const parsed = JSON.parse(extractJsonBlock(parts[1]));
+            applyProposedSchedule(null, encodeURIComponent(JSON.stringify(parsed)));
+        } catch (e) {
+            console.error('手動インポート(予定)の解析に失敗しました:', e);
+            showImportError();
+            return;
+        }
+    } else if (target === 'meal') {
+        const parts = pastedText.split('===PLAN===');
+        if (parts.length !== 2) { showImportError(); return; }
+        try {
+            const plan = JSON.parse(extractJsonBlock(parts[1]));
+            mealPlan = plan;
+            saveMealPlan();
+            renderMealPlan();
+        } catch (e) {
+            console.error('手動インポート(献立)の解析に失敗しました:', e);
+            showImportError();
+            return;
+        }
+    }
+    closeImportModal();
+}
+
+/* ============ 起動処理 ============ */
+initApp();
+requestTimestamps = loadRequestTimestamps(); // PWAのバックグラウンド復帰後も直近の送信状況を復元
+updateDateDisplay();
+renderTimeline();
+renderMealChatRoom();
+updateChatFabIcon();
+startTimePatrol();
+
+</script>
+</body>
+</html>
