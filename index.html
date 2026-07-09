@@ -350,14 +350,20 @@ body {
 /* ===== 食材メモモーダル ===== */
 .memo-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
 .memo-row {
-    display: flex; align-items: center; gap: 10px; background: #faf9ff; border: 1px solid var(--border-color);
-    border-radius: 12px; padding: 9px 10px; cursor: pointer;
+    display: flex; align-items: center; gap: 8px; background: #faf9ff; border: 1px solid var(--border-color);
+    border-radius: 12px; padding: 9px 10px;
 }
 .memo-row .memo-priority-icon {
     font-size: 13px; font-weight: 700; color: var(--text-sub); flex-shrink: 0;
     min-width: 46px; text-align: center; background: #eeecf8; border-radius: 8px; padding: 3px 6px;
+    cursor: pointer;
 }
 .memo-row .memo-name { flex-grow: 1; font-size: 14px; font-weight: 600; color: var(--text-main); word-break: break-all; }
+.memo-row .memo-tomorrow-btn {
+    font-size: 11px; font-weight: 700; color: var(--text-sub); background: #eeecf8;
+    border: none; border-radius: 8px; padding: 5px 8px; flex-shrink: 0; cursor: pointer; white-space: nowrap;
+}
+.memo-row .memo-tomorrow-btn.active { background: #fff3d6; color: #b8860b; }
 .memo-row .memo-remove-btn { background: none; border: none; color: #e53e3e; font-size: 13px; font-weight: bold; padding: 4px; opacity: 0.5; flex-shrink: 0; }
 .memo-empty { text-align: center; color: var(--text-sub); font-size: 13px; padding: 20px 8px; }
 .memo-add-row { display: flex; gap: 8px; }
@@ -564,6 +570,26 @@ const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models
 
 function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
 
+// 【リファクタリング候補2.4対応】機能を足すたびにJSON.stringify/parseを個別に書く保存関数が
+// 1つずつ増えていたため、共通のJSON保存/読込ヘルパーに集約した。
+// 既存の呼び出し関数名(saveToLocalStorage等)は呼び出し箇所への影響を避けるためそのまま維持し、
+// 内部実装だけをこのヘルパー経由に置き換える漸進的なアプローチを取っている。
+function saveJson(key, value) {
+    if (value === null || value === undefined) {
+        localStorage.removeItem(key);
+    } else {
+        localStorage.setItem(key, JSON.stringify(value));
+    }
+}
+function loadJson(key, defaultValue) {
+    try {
+        const raw = localStorage.getItem(key);
+        return raw ? JSON.parse(raw) : defaultValue;
+    } catch (e) {
+        return defaultValue;
+    }
+}
+
 // Googleの無料枠に実際に達する前に、アプリ側で自主的にブレーキをかける。
 // 直近60秒間の送信回数を記録し、しきい値に達したら実際のfetchを送らずに待機を促す。
 // しきい値は固定値ではなく、実際に429(RPM超過)を受け取った際の直近送信回数から学習する(4.1)。
@@ -581,14 +607,12 @@ function currentSafeLimit() {
 // 初期化されていても、直近60秒の送信状況を正しく復元できるようにする。
 const REQUEST_LOG_KEY = 'DAILY_PLANNER_REQUEST_LOG';
 function loadRequestTimestamps() {
-    try {
-        const saved = JSON.parse(localStorage.getItem(REQUEST_LOG_KEY) || '[]');
-        const now = Date.now();
-        return saved.filter(t => now - t < REQUEST_WINDOW_MS);
-    } catch (e) { return []; }
+    const saved = loadJson(REQUEST_LOG_KEY, []);
+    const now = Date.now();
+    return saved.filter(t => now - t < REQUEST_WINDOW_MS);
 }
 function persistRequestTimestamps() {
-    localStorage.setItem(REQUEST_LOG_KEY, JSON.stringify(requestTimestamps));
+    saveJson(REQUEST_LOG_KEY, requestTimestamps);
 }
 
 function pruneOldTimestamps() {
@@ -824,6 +848,7 @@ let mealPlan = null;
 let mealMemo = [];
 let lastCheckedMinute = "";
 let importTargetTab = 'schedule';
+let memoModalOrderIds = []; // 食材メモモーダルを開いている間だけ表示順を固定するための順序リスト(id配列)
 
 // 予定タブの編集・描画系関数はすべてこのヘルパー経由でデータにアクセスする。
 // scheduleDisplayModeに応じてcurrentEvents(今日)/tomorrowEvents(明日の下書き)を切り替えるだけの
@@ -843,9 +868,8 @@ function initApp() {
     const savedDate = localStorage.getItem('DAILY_PLANNER_LAST_DATE');
     const isNewDay = (savedDate !== todayStr);
 
-    const savedEvents = localStorage.getItem('DAILY_PLANNER_EVENTS');
-    const savedTomorrowRaw = localStorage.getItem('DAILY_PLANNER_EVENTS_TOMORROW');
-    const tomorrowDraft = savedTomorrowRaw ? JSON.parse(savedTomorrowRaw) : [];
+    const savedEvents = loadJson('DAILY_PLANNER_EVENTS', null);
+    const tomorrowDraft = loadJson('DAILY_PLANNER_EVENTS_TOMORROW', []);
 
     if (isNewDay) {
         // 前夜に翌日ドラフトが仕込まれていれば、それを「今日」のデータとして昇格させる。
@@ -861,28 +885,33 @@ function initApp() {
         currentEvents = JSON.parse(JSON.stringify(baseRoutines));
         tomorrowEvents = tomorrowDraft;
     } else {
-        currentEvents = JSON.parse(savedEvents);
+        currentEvents = savedEvents;
         tomorrowEvents = tomorrowDraft;
     }
     scheduleDisplayMode = 'today'; // 起動時は常に「今日」表示から始める(セッション内のみの選択状態)
 
-    const savedMealChat = localStorage.getItem('DAILY_PLANNER_MEAL_CHAT');
+    const savedMealChat = loadJson('DAILY_PLANNER_MEAL_CHAT', null);
     if (isNewDay || !savedMealChat) {
         mealMessages = [Object.assign({}, MEAL_GREETING)];
     } else {
-        mealMessages = JSON.parse(savedMealChat);
+        mealMessages = savedMealChat;
     }
 
     if (isNewDay) {
         mealPlan = null;
     } else {
-        const savedPlan = localStorage.getItem('DAILY_PLANNER_MEAL_PLAN');
-        mealPlan = savedPlan ? JSON.parse(savedPlan) : null;
+        mealPlan = loadJson('DAILY_PLANNER_MEAL_PLAN', null);
     }
 
-    // 食材メモは日付をまたいでもリセットしない永続データ
-    const savedMemo = localStorage.getItem('DAILY_PLANNER_MEAL_MEMO');
-    mealMemo = savedMemo ? JSON.parse(savedMemo) : [];
+    // 食材メモは日付をまたいでもリセットしない永続データ(食材名・優先度はそのまま残す)。
+    // ただし「明日使用予定」フラグ(forTomorrow)だけは、翌日になった時点でその「明日」が
+    // 「今日」になり意味を失うため、日付が変わったタイミングで自動的に落とす
+    // (食材そのものやpriorityは消さない。フラグだけを下ろす)。
+    mealMemo = loadJson('DAILY_PLANNER_MEAL_MEMO', []);
+    if (isNewDay && mealMemo.some(m => m.forTomorrow)) {
+        mealMemo.forEach(m => { m.forTomorrow = false; });
+        saveMealMemo();
+    }
 
     // 学習型レート制限の学習値は日付が変わったらリセットする(Google側の無料枠仕様変更に備える)
     if (isNewDay) learnedRpmLimit = null;
@@ -893,21 +922,20 @@ function initApp() {
 }
 
 function saveToLocalStorage() {
-    localStorage.setItem('DAILY_PLANNER_EVENTS', JSON.stringify(currentEvents));
+    saveJson('DAILY_PLANNER_EVENTS', currentEvents);
     localStorage.setItem('DAILY_PLANNER_LAST_DATE', new Date().toDateString());
 }
 function saveTomorrowEvents() {
-    localStorage.setItem('DAILY_PLANNER_EVENTS_TOMORROW', JSON.stringify(tomorrowEvents));
+    saveJson('DAILY_PLANNER_EVENTS_TOMORROW', tomorrowEvents);
 }
 function saveMealChat() {
-    localStorage.setItem('DAILY_PLANNER_MEAL_CHAT', JSON.stringify(mealMessages));
+    saveJson('DAILY_PLANNER_MEAL_CHAT', mealMessages);
 }
 function saveMealPlan() {
-    if (mealPlan) localStorage.setItem('DAILY_PLANNER_MEAL_PLAN', JSON.stringify(mealPlan));
-    else localStorage.removeItem('DAILY_PLANNER_MEAL_PLAN');
+    saveJson('DAILY_PLANNER_MEAL_PLAN', mealPlan);
 }
 function saveMealMemo() {
-    localStorage.setItem('DAILY_PLANNER_MEAL_MEMO', JSON.stringify(mealMemo));
+    saveJson('DAILY_PLANNER_MEAL_MEMO', mealMemo);
 }
 
 // 【新機能】baseRoutinesの定義を変更した際、今日すでに保存済みの予定データには
@@ -1027,6 +1055,15 @@ function showTab(tabId, btnEl) {
 function switchDayMode(mode) {
     scheduleDisplayMode = mode;
     const isTomorrow = mode === 'tomorrow';
+    // 【不具合修正】明日タブを初めて開いたとき(tomorrowEventsが空)は、今日タブの初期化と同じように
+    // ベースルーティンを自動で流し込む。これにより、明日タブを開いた瞬間から今日と同じ見た目になり、
+    // チャットに渡すactiveEvents()にもルーティンが含まれるため、「このタスクを追加して」だけで
+    // 今日と同じ感覚で予定を組み立てられる(以前は空のまま渡していたため、AIの解釈に安定して頼れなかった)。
+    // 一度流し込んだ後は空にならないため、次回以降は上書きされず編集内容がそのまま保持される。
+    if (isTomorrow && tomorrowEvents.length === 0) {
+        tomorrowEvents = JSON.parse(JSON.stringify(baseRoutines));
+        saveTomorrowEvents();
+    }
     document.getElementById('day-toggle-today-btn').classList.toggle('active', !isTomorrow);
     document.getElementById('day-toggle-tomorrow-btn').classList.toggle('active', isTomorrow);
     document.getElementById('day-mode-banner-timeline').style.display = isTomorrow ? 'block' : 'none';
@@ -1525,6 +1562,9 @@ function appendMealBubbleLive(sender, text, isUser, plan, memoNote, showImportSh
 // 【新機能】献立と段取りを完全にクリアして最初からやり直す。
 // 食材メモ(mealMemo)は「日付をまたいでも残す永続データ」という既存の設計方針があるため、
 // このリセットの対象には含めない(消したい場合は食材メモ画面から個別に削除する)。
+// 【20260709確定】「明日使用予定」フラグ(forTomorrow)を追加した後も、この方針は変えない。
+// このボタンは「今日の献立を考え直したい」時のものであり「食材メモを整理したい」時のものではないため、
+// 押すたびに明日使う印まで消えると、そのたびにメモし直す手間が発生し不便になるという判断による。
 function resetMealPlanAndChat() {
     if (!confirm("献立と段取りをすべてクリアして、最初からやり直しますか？\nこの操作は取り消せません（食材メモは残ります）。")) return;
     mealPlan = null;
@@ -1536,7 +1576,8 @@ function resetMealPlanAndChat() {
 }
 
 function addMealMemoItem(ingredientName) {
-    mealMemo.push({ id: 'm_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6), ingredient: ingredientName, priority: null });
+    // forTomorrow(明日使用予定フラグ)はpriorityとは別軸の情報。日付が変わったらinitApp()側で自動クリアする。
+    mealMemo.push({ id: 'm_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6), ingredient: ingredientName, priority: null, forTomorrow: false });
     saveMealMemo();
 }
 
@@ -1838,6 +1879,10 @@ function downloadDiaryText() {
 /* ============ 食材メモ機能 ============ */
 function openMemoModal() {
     document.getElementById('memo-overlay').classList.add('active');
+    // 【不具合修正】以前はボタンをタップするたびに優先度順で再ソートしていたため、
+    // 1回タップした瞬間にその食材が上に飛んでしまい、連続で操作すると誤って別の食材の
+    // ボタンを押してしまう問題があった。開いた瞬間だけ並び替え、以後はこの順番を固定する。
+    memoModalOrderIds = [...mealMemo].sort((a, b) => priorityRank(a.priority) - priorityRank(b.priority)).map(m => m.id);
     renderMemoModal();
 }
 function closeMemoModal() {
@@ -1857,22 +1902,27 @@ function priorityIcon(p) {
 }
 function renderMemoModal() {
     const body = document.getElementById('memo-body');
-    const sorted = [...mealMemo].sort((a, b) => priorityRank(a.priority) - priorityRank(b.priority));
+    // 表示順はopenMemoModal()で固定したmemoModalOrderIdsに従う(タップのたびに再ソートしない)。
+    // 削除された項目は順序リストからも取り除き、新規追加された項目(まだ順序リストに無いもの)は末尾に足す。
+    memoModalOrderIds = memoModalOrderIds.filter(id => mealMemo.some(m => m.id === id));
+    mealMemo.forEach(m => { if (!memoModalOrderIds.includes(m.id)) memoModalOrderIds.push(m.id); });
+    const ordered = memoModalOrderIds.map(id => mealMemo.find(m => m.id === id)).filter(Boolean);
 
     let listHtml = '';
-    if (sorted.length === 0) {
+    if (ordered.length === 0) {
         listHtml = '<div class="memo-empty">まだメモがないニャ。献立チャットで食材を話しかけるか、下から直接追加してほしいニャ🐾</div>';
     } else {
-        listHtml = '<div class="memo-list">' + sorted.map(m => `
-            <div class="memo-row" onclick="togglePriority('${m.id}')">
-                <span class="memo-priority-icon">${priorityIcon(m.priority)}</span>
+        listHtml = '<div class="memo-list">' + ordered.map(m => `
+            <div class="memo-row">
+                <span class="memo-priority-icon" onclick="togglePriority('${m.id}')">${priorityIcon(m.priority)}</span>
                 <span class="memo-name">${m.ingredient}</span>
-                <button class="memo-remove-btn" onclick="event.stopPropagation(); removeMemoItem('${m.id}')">✕</button>
+                <button class="memo-tomorrow-btn ${m.forTomorrow ? 'active' : ''}" onclick="toggleForTomorrow('${m.id}')">${m.forTomorrow ? '📌 明日使う' : '明日使う'}</button>
+                <button class="memo-remove-btn" onclick="removeMemoItem('${m.id}')">✕</button>
             </div>`).join('') + '</div>';
     }
 
     body.innerHTML = `
-        <p style="font-size:12px;color:var(--text-sub);line-height:1.6;margin-top:0;">タップで優先度を切り替えできます（未設定→高→中→低→未設定）</p>
+        <p style="font-size:12px;color:var(--text-sub);line-height:1.6;margin-top:0;">優先度アイコンをタップで切り替え（未設定→高→中→低→未設定）。「明日使う」ボタンで明日使用予定の印をつけられます（日付が変わると自動で外れます）。</p>
         ${listHtml}
         <div class="memo-add-row">
             <input type="text" id="memo-add-input" class="memo-add-input" placeholder="食材名を入力...">
@@ -1885,6 +1935,13 @@ function togglePriority(id) {
     if (!item) return;
     const order = [null, 'high', 'mid', 'low'];
     item.priority = order[(order.indexOf(item.priority) + 1) % order.length];
+    saveMealMemo();
+    renderMemoModal();
+}
+function toggleForTomorrow(id) {
+    const item = mealMemo.find(m => m.id === id);
+    if (!item) return;
+    item.forTomorrow = !item.forTomorrow;
     saveMealMemo();
     renderMemoModal();
 }
