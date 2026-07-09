@@ -769,6 +769,15 @@ function extractJsonBlock(rawText) {
     return t;
 }
 
+// 【不具合修正】献立チャットのAIが、段取りJSONの"time"に絶対時刻(例:"18:20")ではなく
+// 所要時間(例:"10分")を入れてしまうことが稀にあった。プロンプト側で明示するだけでは
+// 完全には防げないため、保存前に必ずHH:MM形式かどうかを検証し、不正なら
+// パース失敗として扱う(既存のエラーメッセージ・再試行フローに乗せる)。
+function isValidPlanSteps(steps) {
+    return Array.isArray(steps) && steps.length > 0 &&
+        steps.every(s => s && typeof s.time === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(s.time));
+}
+
 /* 🌞 普遍的なマスター初期データ（時間軸破壊禁止） */
 const baseRoutines = [
     { time: "07:00", title: "起床・お部屋リセット", detail: "カーテンを開ける/布団を整える/亀にエサ/猫にごはん/猫のトイレ掃除（実働20分・残り10分バッファ）", type: "routine", done: false, chime: false },
@@ -1544,12 +1553,19 @@ function buildMealSystemPrompt() {
 語尾には「〜ニャ」「〜ニャ〜🐾」をつけてください。
 食材や好みの相談に自由に応じ、献立が決まったら「効率よく段取りを組んで」、
 以下のフォーマットでコメントの後に『===PLAN===』を挟んでJSONを出力してください：
-{ "dish": "...", "steps": [{ "time": "...", "title": "...", "detail": "..." }] }
+{ "dish": "...", "steps": [{ "time": "18:20", "title": "...", "detail": "..." }] }
+【重要】"time"は必ず絶対時刻(24時間表記の"HH:MM"、例:"18:20")で指定してください。
+"10分"のような所要時間を入れてはいけません。そのステップに何時から取り掛かるかを表す時刻です。
 段取りがまだ確定していない相談段階では、JSONを出力せずコメントのみ返してください。
-会話の中で食材名が出てきたら、コメントの後に『===MEMO===』を挟んで
+
+会話の中で食材名が出てきても、それが今回コメントと同時に確定させる献立(===PLAN===)に
+そのまま使う食材である場合は、===MEMO===の対象にしないでください。
+===MEMO===に入れるのは、今は使わないが今後のために覚えておきたい食材、
+または献立に組み込むかどうかまだ未定の食材だけです。
+該当する食材があれば、コメントの後に『===MEMO===』を挟んで
 { "ingredients": ["鶏むね肉"] } の形式でJSONを出力してください（複数可）。
 このJSONには優先度は含めないでください（優先度はユーザーがアプリ側で設定します）。
-段取り確定時の『===PLAN===』とは別に、必要であれば同じ応答内に両方含めてもかまいません。
+段取り確定時の『===PLAN===』と同じ応答に含める場合は、PLANで使う食材とMEMOの食材が重複しないようにしてください。
 
 【調理に使える実際の時間帯】
 このユーザーが実際に調理・片付けに使える時間は${cookWindow.start}〜${cookWindow.end}のみに固定されています(予定タブの最新のスケジュールに連動)。
@@ -1583,13 +1599,43 @@ async function handleMealSend() {
             // 【不具合修正】===MEMO===と===PLAN===はどちらが先に出てきても、
             // それぞれ独立して抽出する(以前はMEMOが先だとPLAN側が巻き込まれて消えていた)
             const rawText = result.text;
-            let memoNoteText = null;
+            const commentText = extractCommentBeforeMarkers(rawText).trim();
 
+            // 先にPLANを解析しておく。これは、今回確定した献立の文字列を
+            // MEMO側のフィルタ(下記)に使うため。
+            const planSection = extractMarkedSection(rawText, '===PLAN===');
+            let plan = null;
+            let planParseFailed = false;
+            if (planSection !== null) {
+                try {
+                    const parsedPlan = JSON.parse(extractJsonBlock(planSection));
+                    if (!isValidPlanSteps(parsedPlan.steps)) {
+                        throw new Error('段取りのtimeが絶対時刻(HH:MM)になっていません: ' + JSON.stringify(parsedPlan.steps));
+                    }
+                    plan = parsedPlan;
+                } catch (parseErr) {
+                    console.error('段取りJSONの解析に失敗しました:', parseErr, planSection);
+                    planParseFailed = true;
+                }
+            }
+            // 今回確定した献立名・手順のテキスト(MEMOフィルタの照合用)
+            const finalizedDishText = plan
+                ? (plan.dish || '') + ' ' + plan.steps.map(s => `${s.title} ${s.detail || ''}`).join(' ')
+                : '';
+
+            let memoNoteText = null;
             const memoSection = extractMarkedSection(rawText, '===MEMO===');
             if (memoSection !== null) {
                 try {
                     const memoJson = JSON.parse(extractJsonBlock(memoSection));
-                    const names = memoJson.ingredients || [];
+                    const allNames = memoJson.ingredients || [];
+                    // 【不具合修正】今回コメントと同時に確定した献立(===PLAN===)に
+                    // そのまま使う食材まで、日付をまたいでも残る食材メモに登録されてしまう
+                    // 不具合があった。確定した献立の文字列に含まれる食材名は、
+                    // 「今後のためのメモ」ではないと判断してMEMOの対象から除外する。
+                    const names = plan
+                        ? allNames.filter(name => !finalizedDishText.includes(name))
+                        : allNames;
                     names.forEach(name => addMealMemoItem(name));
                     if (names.length > 0) memoNoteText = names.join('、');
                 } catch (memoErr) {
@@ -1597,20 +1643,14 @@ async function handleMealSend() {
                 }
             }
 
-            const commentText = extractCommentBeforeMarkers(rawText).trim();
-            const planSection = extractMarkedSection(rawText, '===PLAN===');
-            if (planSection !== null) {
-                try {
-                    const plan = JSON.parse(extractJsonBlock(planSection));
-                    mealPlan = plan;
-                    saveMealPlan();
-                    appendMealBubbleLive('nekosuke', commentText, false, plan, memoNoteText);
-                    renderMealPlan();
-                    closeChatOverlay(); // 段取りが完成したら、チャットを閉じて背後の一覧を見せる
-                } catch (parseErr) {
-                    console.error('段取りJSONの解析に失敗しました:', parseErr, planSection);
-                    appendMealBubbleLive('nekosuke', (commentText || "うまくまとめられなかったニャ…") + "\n\n（段取りデータの形式が崩れていたので反映できなかったニャ。もう一度お願いしてほしいニャ🙏）", false, null, memoNoteText);
-                }
+            if (plan) {
+                mealPlan = plan;
+                saveMealPlan();
+                appendMealBubbleLive('nekosuke', commentText, false, plan, memoNoteText);
+                renderMealPlan();
+                closeChatOverlay(); // 段取りが完成したら、チャットを閉じて背後の一覧を見せる
+            } else if (planParseFailed) {
+                appendMealBubbleLive('nekosuke', (commentText || "うまくまとめられなかったニャ…") + "\n\n（段取りデータの形式が崩れていたので反映できなかったニャ。もう一度お願いしてほしいニャ🙏）", false, null, memoNoteText);
             } else {
                 appendMealBubbleLive('nekosuke', commentText || "……ちょっと考え中ニャ、もう一度話しかけてほしいニャ。", false, null, memoNoteText);
             }
@@ -1853,7 +1893,8 @@ function buildMealImportPrompt() {
 【ユーザーの依頼】: （ここに献立の要望を書いてください）
 
 献立が決まったら、コメントの後に『===PLAN===』を挟んで
-{ "dish": "...", "steps": [{ "time": "...", "title": "...", "detail": "..." }] } の形式でJSONを出力してください。
+{ "dish": "...", "steps": [{ "time": "18:20", "title": "...", "detail": "..." }] } の形式でJSONを出力してください。
+"time"は必ず絶対時刻(24時間表記の"HH:MM"、例:"18:20")にしてください。"10分"のような所要時間ではありません。
 調理・片付けに使える時間は${cookWindow.start}〜${cookWindow.end}に固定されています。最初のステップは${cookWindow.start}以降、最後のステップは${cookWindow.end}までに収めてください。
 回答が終わったら、コメント部分と『===PLAN===』以降のJSON部分を両方まとめてコピーし、このアプリに戻って貼り付けてください。`;
 }
@@ -1917,6 +1958,9 @@ function applyManualImport(target, pastedText) {
         if (parts.length !== 2) { showImportError(); return; }
         try {
             const plan = JSON.parse(extractJsonBlock(parts[1]));
+            if (!isValidPlanSteps(plan.steps)) {
+                throw new Error('段取りのtimeが絶対時刻(HH:MM)になっていません: ' + JSON.stringify(plan.steps));
+            }
             mealPlan = plan;
             saveMealPlan();
             renderMealPlan();
