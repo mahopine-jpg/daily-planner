@@ -666,8 +666,7 @@ async function callGeminiAPI(promptText, maxOutputTokens, attempt) {
                 generationConfig: {
                     maxOutputTokens: maxOutputTokens || 2048,
                     temperature: 0.9,
-                    // 【不具合修正】gemini-3.5-flashは内部思考(thinking)がデフォルトで有効になっており、
-                    // その思考トークンがmaxOutputTokensの枠を実際の出力テキストと合算で消費してしまう仕様のため、
+                    // 【不具合修正】このモデルはデフォルトで内部思考(thinking)が有効になっており、
                     // 「文字数制限内にまとめて」という指示があっても、思考に枠を食われて本文が途中で
                     // 打ち切られる(finishReason: MAX_TOKENS)不具合があった。
                     // このアプリの用途(決まったフォーマットでの出力)ではthinkingによる精度向上の恩恵が薄いため、
@@ -1782,16 +1781,16 @@ function splitDishItems(dishText) {
 function buildMealDiaryLines() {
     if (!mealPlan || !mealPlan.dish) return null;
     const items = splitDishItems(mealPlan.dish);
-    return items.length > 0 ? items.map(item => `・${item}`) : null;
+    return items.length > 0 ? items.map(i => `・${i}`) : null;
 }
 
 function generateDiary() {
     const scheduleLines = buildScheduleDiaryLines();
     const mealLines = buildMealDiaryLines();
 
-    let body = '★今日の予定\n' + scheduleLines.join('\n');
+    let body = `★今日の予定\n${scheduleLines.join('\n')}`;
     if (mealLines) {
-        body += '\n\n★今日の献立\n' + mealLines.join('\n');
+        body += `\n\n★今日の献立\n${mealLines.join('\n')}`;
     }
 
     const fullText = `${buildDiaryDateHeader()}\n\n${body}`;
