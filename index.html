@@ -411,6 +411,7 @@ body {
                 <button class="header-menu-item" onclick="closeHeaderMenu(); openDiaryModal();">📔 日記を書き出す</button>
                 <button class="header-menu-item" onclick="closeHeaderMenu(); openMemoModal();">🥕 食材メモ</button>
                 <button class="header-menu-item" onclick="closeHeaderMenu(); resetMealPlanAndChat();">🔄 献立をやり直す</button>
+                <button class="header-menu-item" onclick="closeHeaderMenu(); syncTodayWithBaseRoutines();">🔃 今日の予定をベースルーティンに同期</button>
                 <button class="header-menu-item" onclick="closeHeaderMenu(); openManualImportModal();">🆘 手動で作ってもらう</button>
                 <button class="header-menu-item" onclick="closeHeaderMenu(); resetApiKey();">🔑 APIキー再設定</button>
             </div>
@@ -775,8 +776,9 @@ const baseRoutines = [
     { time: "08:00", title: "朝食＆ゆったり休憩 ☕️", detail: "子供が出かけた後の朝ごはん。【最重要】食後にサプリを飲む。", type: "routine", done: false, chime: true },
     { time: "09:00", title: "朝の集中家事＆身支度 🧹", detail: "食器洗い ➔ 洗濯機回す ➔ 掃除ロボ起動。その間に自身の洗面・身支度。", type: "routine", done: false, chime: true },
     { time: "12:00", title: "ランチ休憩 🥗", detail: "調理・食事・片付けをゆったり含む（90分枠）", type: "routine", done: false, chime: false },
-    { time: "18:00", title: "夜の家事＆夕食の調理スタート 🐈", detail: "カーテンを閉める、猫にごはんをあげる、炊飯器のセット、夕食の調理を19:30までに終わらせる。", type: "routine", done: false, chime: false },
-    { time: "19:30", title: "夕食＆片付け 🍽️", detail: "家族での楽しい夕食タイムと、その後の食器洗い・シンク片付け。21:00までにのんびり完了させるニャ。", type: "routine", done: false, chime: true },
+    { time: "18:00", title: "夜の家事 🐈", detail: "カーテンを閉める、猫にごはんをあげる、お米を研いで炊飯器にかける（20分想定）。", type: "routine", done: false, chime: true },
+    { time: "18:20", title: "夕食の調理 🍳", detail: "19:30までに夕食の調理を終わらせる。", type: "routine", done: false, chime: false },
+    { time: "19:30", title: "夕食＆片付け 🍽️", detail: "家族での楽しい夕食タイムと、その後の食器洗い・シンク片付け。21:00までにのんびり完了させるニャ。", type: "routine", done: false, chime: false },
     { time: "22:00", title: "入浴＆自由時間 🎵", detail: "お風呂にゆっくり浸かり、BTSの動画を見たり韓国語の勉強をするリラックスタイム。", type: "routine", done: false, chime: true },
     { time: "23:50", title: "就寝 🌙", detail: "夜更かし厳禁・健康のための絶対死守ライン！", type: "routine", done: false, chime: true }
 ];
@@ -874,6 +876,29 @@ function saveMealPlan() {
 }
 function saveMealMemo() {
     localStorage.setItem('DAILY_PLANNER_MEAL_MEMO', JSON.stringify(mealMemo));
+}
+
+// 【新機能】baseRoutinesの定義を変更した際、今日すでに保存済みの予定データには
+// 自動反映されない(日付が変わるまで待つ必要がある)ため、手動でいつでも同期できるボタンを用意する。
+// ユーザーがチャット等で追加した予定(type !== 'routine')はそのまま維持し、
+// ルーティン(type === 'routine')だけを最新のbaseRoutinesで丸ごと置き換える。
+// タイトルが完全一致するルーティンがあれば、完了(done)状態だけ引き継ぐ
+// (チャイム設定は「最新定義が正」として常に上書きする)。
+function syncTodayWithBaseRoutines() {
+    if (!confirm("今日の予定のうち、固定ルーティン部分だけを最新のベースルーティン定義に同期します。\nチャットで追加した予定はそのまま残ります。よろしいですか？")) return;
+
+    const oldRoutines = currentEvents.filter(e => e.type === 'routine');
+    const otherEvents = currentEvents.filter(e => e.type !== 'routine');
+
+    const newRoutines = JSON.parse(JSON.stringify(baseRoutines)).map(newR => {
+        const matchOld = oldRoutines.find(oldR => oldR.title === newR.title);
+        if (matchOld) newR.done = matchOld.done;
+        return newR;
+    });
+
+    currentEvents = [...newRoutines, ...otherEvents];
+    saveToLocalStorage();
+    renderTimeline();
 }
 
 function updateDateDisplay() {
@@ -1037,34 +1062,17 @@ function updateChatFabIcon() {
     fab.style.transform = chatOverlayOpen ? 'scale(0.001)' : 'scale(1)';
 }
 
-const NEKOSUKE_TIPS = [
-    "この間にちょっと一息つくニャ☕",
-    "余裕があるうちに水分補給しておくニャ🐾",
-    "背伸びして肩をほぐすといいニャ〜",
-    "窓の外を見てリフレッシュするニャ",
-    "深呼吸をひとつ、ふーっとニャ",
-    "好きな音楽でも聴いてみるニャ🎵",
-    "ちょっとだけ歩いてみるニャ",
-    "お茶を一杯いれて休憩するニャ",
-    "遠くを見て目を休めるニャ👀",
-    "焦らず、自分のペースでいいニャ🐈",
-    "ここでひと踏ん張りニャ、応援してるニャ！",
-    "空いた時間は自由に使っていいニャ〜"
-];
-function pickNekosukeTip(seedKey) {
-    let hash = 0;
-    for (let i = 0; i < seedKey.length; i++) {
-        hash = (hash * 31 + seedKey.charCodeAt(i)) >>> 0;
-    }
-    return NEKOSUKE_TIPS[hash % NEKOSUKE_TIPS.length];
-}
 // タイトルから絵文字・記号を除いた自然な呼び名を作る
 function cleanTitle(t) {
     return (t || '').replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u2190-\u21FF\u2B00-\u2BFF\uFE0F]+/gu, '').trim();
 }
 // 固定パターンの条件分岐だけでネコ助の「らしさ」を出す(AI呼び出し不要)
-function buildGapTip(diffMin, nextEv, curEvDone) {
-    if (curEvDone || !nextEv) return null;
+// 【仕様変更】以前は45〜119分の空きにランダムな定型フレーズ(NEKOSUKE_TIPS)を、
+// 20〜44分の空きに「そろそろ準備するニャ」を出していたが、
+// 「動的でもなく定型フレーズがイマイチ」「調理直後にも紛れて出てしまう」との指摘を受け、
+// 両方とも廃止。本当に余白の多い時間帯(120分以上)と、就寝前の実用的な予告のみに絞る。
+function buildGapTip(diffMin, nextEv, curEv) {
+    if (curEv.done || !nextEv) return null;
     const nextTitle = cleanTitle(nextEv.title) || nextEv.title;
 
     if (nextEv.title.includes('就寝') && diffMin <= 90) {
@@ -1073,12 +1081,6 @@ function buildGapTip(diffMin, nextEv, curEvDone) {
     if (diffMin >= 120) {
         return { face: '🐱', text: `自由時間ニャ、次は${nextEv.time}の${nextTitle}までのんびりしていいニャ🐾` };
     }
-    if (diffMin >= 45) {
-        return { face: '🐱', text: pickNekosukeTip(new Date().toDateString() + nextEv.time) };
-    }
-    if (diffMin >= 20) {
-        return { face: '🙀', text: `そろそろ${nextTitle}の準備をぼちぼちするニャ` };
-    }
     return null;
 }
 
@@ -1086,6 +1088,11 @@ function buildGapTip(diffMin, nextEv, curEvDone) {
 function timeToMinutes(t) {
     const parts = (t || "00:00").split(':').map(Number);
     return (parts[0] || 0) * 60 + (parts[1] || 0);
+}
+function minutesToTime(mins) {
+    const h = Math.floor(mins / 60) % 24;
+    const m = mins % 60;
+    return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
 }
 function calcGapPx(diffMin) {
     if (diffMin <= 0) return 14;
@@ -1199,7 +1206,7 @@ function buildGapSegmentHtml(curEv, nextEv, nowMin) {
     if (nowMin >= curMin && nowMin < nextMin) {
         parts.push(buildNowIndicatorHtml());
     }
-    const tip = buildGapTip(diffMin, nextEv, curEv.done);
+    const tip = buildGapTip(diffMin, nextEv, curEv);
     if (tip) parts.push(buildNekosukeRowHtml(tip));
 
     if (parts.length === 0) {
@@ -1422,7 +1429,7 @@ async function handleSend() {
     1. 予定の追加・削除・時刻変更など、タイムラインに具体的な変更を提案する時だけ、コメントの後に『===DATA===』を挟んで更新後の全予定JSONを出力してください。
     2. 雑談・質問への返答・相談段階のやり取りなど、タイムラインを変更しない返答の場合は、JSONを出力せずコメントのみ返してください（===DATA===は付けないでください）。
     3. 午後は18:00まで基本的に自由時間のため12:00〜18:00の間はタイムラインを空けてください。
-    4. ベースルーティン[起床(07:00), お弁当(07:30), 朝食(08:00), 朝家事(09:00), ランチ(12:00), 夜家事調理(18:00), 夕食片付け(19:30), 入浴(22:00), 就寝(23:50)]は絶対削除禁止。
+    4. ベースルーティン[起床(07:00), お弁当(07:30), 朝食(08:00), 朝家事(09:00), ランチ(12:00), 夜の家事(18:00), 夕食の調理(18:20), 夕食片付け(19:30), 入浴(22:00), 就寝(23:50)]は絶対削除禁止。
     `;
 
     try {
@@ -1501,10 +1508,37 @@ function addMealMemoItem(ingredientName) {
     saveMealMemo();
 }
 
+// 【仕様変更】以前は「夜の家事＆夕食の調理スタート」1枚のカードから+20分のバッファ計算で
+// 調理開始時刻を推定していたが、予定タブ側を「夜の家事」「夕食の調理」の2枚に分割したことで、
+// 計算式なしで直接カードの時刻を参照するだけで済むようになった(リスケにも直接追従する)。
+function getCookingWindow() {
+    const cookEvent = currentEvents.find(e => e.title && e.title.includes('夕食の調理'));
+    const cleanupEvent = currentEvents.find(e => e.title && e.title.includes('夕食＆片付け'));
+    if (!cookEvent || !cleanupEvent) {
+        // ルーティンが見つからない(タイトル変更・削除等)場合は、既定値にフォールバックする
+        return { start: '18:20', end: '19:30' };
+    }
+    return { start: cookEvent.time, end: cleanupEvent.time };
+}
+
 function buildMealSystemPrompt() {
     const highPriorityMemo = mealMemo.filter(m => m.priority === 'high' || m.priority === 'mid')
         .map(m => `${m.priority === 'high' ? '🔴' : '🟡'}${m.ingredient}`).join('、');
     const memoContext = highPriorityMemo ? `\n【ユーザーが使いたいと思っている食材】: ${highPriorityMemo}` : '';
+
+    // 【不具合修正】以前は現在の段取り状態を一切AIに渡していなかったため、
+    // 「時間を変更して」等の"既存プランの微調整"依頼に対しても、AIは何が既に決まっているか分からず
+    // 全く別の献立・段取りを新規提案してしまっていた。既存プランがあれば必ずコンテキストとして渡す。
+    const currentPlanContext = (mealPlan && mealPlan.steps && mealPlan.steps.length > 0)
+        ? `\n【現在すでに登録されている献立・段取り】\n献立: ${mealPlan.dish || ''}\n` +
+          mealPlan.steps.map(s => `- ${s.time} ${s.title}（${s.detail || ''}）`).join('\n') +
+          `\nユーザーが「時間を変えて」「もっと早く/遅く」等、微調整を頼んできた場合は、` +
+          `この献立・手順の中身は基本的に維持したまま、時間や該当箇所だけを調整した『===PLAN===』を返してください。` +
+          `別の献立を提案するのは、ユーザーが明確に別メニューを希望した時だけにしてください。`
+        : '';
+
+    const cookWindow = getCookingWindow();
+
     return `
 あなたはユーザーの夕食の献立と調理の段取りを考える、優秀なAIアシスタント「ネコ助」です。
 語尾には「〜ニャ」「〜ニャ〜🐾」をつけてください。
@@ -1515,7 +1549,14 @@ function buildMealSystemPrompt() {
 会話の中で食材名が出てきたら、コメントの後に『===MEMO===』を挟んで
 { "ingredients": ["鶏むね肉"] } の形式でJSONを出力してください（複数可）。
 このJSONには優先度は含めないでください（優先度はユーザーがアプリ側で設定します）。
-段取り確定時の『===PLAN===』とは別に、必要であれば同じ応答内に両方含めてもかまいません。${memoContext}
+段取り確定時の『===PLAN===』とは別に、必要であれば同じ応答内に両方含めてもかまいません。
+
+【調理に使える実際の時間帯】
+このユーザーが実際に調理・片付けに使える時間は${cookWindow.start}〜${cookWindow.end}のみに固定されています(予定タブの最新のスケジュールに連動)。
+これより前は、カーテンを閉める・猫にごはんをあげる・お米を研いで炊飯器にかける、という
+調理そのものではない家事の時間帯なので、段取りの最初のステップをここに置かないでください。
+段取りの最初のステップは${cookWindow.start}以降、最後のステップは${cookWindow.end}までに収まるように時間を設定してください。
+これは毎日固定の制約なので、料理の内容やユーザーの発言に関わらず必ず守ってください。${currentPlanContext}${memoContext}
 `;
 }
 
@@ -1799,19 +1840,21 @@ function buildScheduleImportPrompt() {
 回答は、まずコメントを書き、その後に『===DATA===』を挟んで
 更新後の全予定JSON（time, title, detail, type, done, chimeを含む配列）を出力してください。
 以下のベースルーティンは絶対に削除しないでください：
-起床(07:00), お弁当(07:30), 朝食(08:00), 朝家事(09:00), ランチ(12:00), 夜家事調理(18:00), 夕食片付け(19:30), 入浴(22:00), 就寝(23:50)
+起床(07:00), お弁当(07:30), 朝食(08:00), 朝家事(09:00), ランチ(12:00), 夜の家事(18:00), 夕食の調理(18:20), 夕食片付け(19:30), 入浴(22:00), 就寝(23:50)
 回答が終わったら、コメント部分と『===DATA===』以降のJSON部分を両方まとめてコピーし、このアプリに戻って貼り付けてください。`;
 }
 function buildMealImportPrompt() {
     const memoText = mealMemo.length > 0
         ? mealMemo.map(m => `${m.ingredient}${m.priority ? '(' + m.priority + ')' : ''}`).join('、')
         : 'なし';
+    const cookWindow = getCookingWindow();
     return `あなたはユーザーの夕食の献立と調理の段取りを考えるアシスタントです。
 【使いたい食材メモ】: ${memoText}
 【ユーザーの依頼】: （ここに献立の要望を書いてください）
 
 献立が決まったら、コメントの後に『===PLAN===』を挟んで
 { "dish": "...", "steps": [{ "time": "...", "title": "...", "detail": "..." }] } の形式でJSONを出力してください。
+調理・片付けに使える時間は${cookWindow.start}〜${cookWindow.end}に固定されています。最初のステップは${cookWindow.start}以降、最後のステップは${cookWindow.end}までに収めてください。
 回答が終わったら、コメント部分と『===PLAN===』以降のJSON部分を両方まとめてコピーし、このアプリに戻って貼り付けてください。`;
 }
 function switchImportTarget(target) {
