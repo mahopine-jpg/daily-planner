@@ -663,7 +663,17 @@ async function callGeminiAPI(promptText, maxOutputTokens, attempt) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 contents: [{ parts: [{ text: promptText }] }],
-                generationConfig: { maxOutputTokens: maxOutputTokens || 2048, temperature: 0.9 }
+                generationConfig: {
+                    maxOutputTokens: maxOutputTokens || 2048,
+                    temperature: 0.9,
+                    // 【不具合修正】gemini-3.5-flashは内部思考(thinking)がデフォルトで有効になっており、
+                    // その思考トークンがmaxOutputTokensの枠を実際の出力テキストと合算で消費してしまう仕様のため、
+                    // 「文字数制限内にまとめて」という指示があっても、思考に枠を食われて本文が途中で
+                    // 打ち切られる(finishReason: MAX_TOKENS)不具合があった。
+                    // このアプリの用途(決まったフォーマットでの出力)ではthinkingによる精度向上の恩恵が薄いため、
+                    // 明示的にオフにして、maxOutputTokensを全て本文に使えるようにする。
+                    thinkingConfig: { thinkingBudget: 0 }
+                }
             })
         });
 
@@ -707,6 +717,20 @@ async function callGeminiAPI(promptText, maxOutputTokens, attempt) {
             const reason = candidate && candidate.finishReason ? `(finishReason: ${candidate.finishReason})` : '';
             console.error('Geminiの応答にテキストが含まれていません:', data);
             return { ok: false, message: `AIからの応答が空だったニャ ${reason}` };
+        }
+
+        // 【不具合対策】thinkingConfigをオフにしても、応答が長くなりすぎてmaxOutputTokensの
+        // 枠に収まりきらず、文章が途中で打ち切られる(finishReason: MAX_TOKENS)ケースが万一残った場合の保険。
+        // 打ち切られたテキストをそのまま画面に出すと「文が途中で切れる」不具合の再発になるため、
+        // 一度だけmaxOutputTokensを増やして再試行し、それでもダメならエラーとして扱う
+        // (中途半端な文章をそのまま結果として返さない)。
+        if (candidate.finishReason === 'MAX_TOKENS') {
+            if (attempt < MAX_ATTEMPTS) {
+                console.warn(`応答が途中で打ち切られたため、出力上限を増やして再試行します(${attempt}回目)`);
+                return callGeminiAPI(promptText, (maxOutputTokens || 2048) * 2, attempt + 1);
+            }
+            console.error('Geminiの応答が出力上限により途中で打ち切られました:', data);
+            return { ok: false, message: `文章が長すぎて途中で切れてしまったニャ。もう一度試すか、内容を短めに聞いてみてほしいニャ🙏` };
         }
 
         return { ok: true, text: textPart.text };
@@ -1708,14 +1732,20 @@ function renderMealPlan() {
     container.innerHTML = html;
 }
 
-/* ============ 日記出力機能 ============ */
+/* ============ 日記出力機能 ============
+   【仕様変更】以前はAI(Gemini)に「150〜220字程度の文章」として生成させていたが、
+   ・文章生成に起因する不具合(応答途中での打ち切り等)が起きうる
+   ・希望する出力形式が「見出し＋箇条書き」という機械的に組み立てやすい形に変わった
+   の2点から、AI呼び出しをやめてアプリ側でデータから直接組み立てる方式に変更した。
+   これにより生成は常に即時・確実になり、文字数の上限/下限という概念も無くなった
+   (情報量に応じて自然に行数が増減し、水増しや圧縮が発生しない)。 */
 function openDiaryModal() {
     document.getElementById('diary-overlay').classList.add('active');
     document.getElementById('diary-body').innerHTML = `
         <p style="font-size:13px;color:var(--text-sub);line-height:1.6;margin-top:0;">
-            チャットで追加・変更した予定と今日の献立から、その日の記録を短くまとめます（毎日固定のルーティンは含みません）。NotebookLMなどへの貼り付けにどうぞ。
+            チャットで追加・変更した予定と今日の献立から、その日の記録を箇条書きでまとめます（毎日固定のルーティンは含みません）。NotebookLMなどへの貼り付けにどうぞ。
         </p>
-        <button class="diary-gen-btn" onclick="generateDiary()">✍️ 記録を生成する</button>
+        <button class="diary-gen-btn" onclick="generateDiary()">📝 記録を作成する</button>
     `;
 }
 function closeDiaryModal() {
@@ -1728,33 +1758,43 @@ function buildDiaryDateHeader() {
     return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日（${weekDayStr}）`;
 }
 
-async function generateDiary() {
-    if (!API_KEY) { alert("APIキーが設定されていません。"); return; }
-    document.getElementById('diary-body').innerHTML = `<div class="diary-loading">今日の記録を整理しています...</div>`;
-
-    // 毎日固定のルーティン(type: routine)は対象外。チャットで追加・変更された予定のみを扱う。
+// 毎日固定のルーティン(type: routine)は対象外。チャットで追加・変更された予定のみを扱う。
+// 該当が無ければ「・特記事項なし」の1行のみにする(ルーティン通りだった日)。
+// 未完了の予定は、完了済みと混同しないよう「（未実施）」を付けて区別する。
+function buildScheduleDiaryLines() {
     const chatAddedEvents = currentEvents.filter(e => e.type !== 'routine');
-    const doneList = chatAddedEvents.filter(e => e.done).map(e => e.title);
-    const notDoneList = chatAddedEvents.filter(e => !e.done).map(e => e.title);
-    const todayMenu = (mealPlan && mealPlan.dish) ? mealPlan.dish : '';
+    if (chatAddedEvents.length === 0) return ['・特記事項なし'];
+    return chatAddedEvents.map(e => `・${e.title}${e.done ? '' : '（未実施）'}`);
+}
 
-    const prompt = `
-    以下の情報をもとに、その日にあった出来事を淡々と短く記録する文章を書いてください。
-    ・特定の人物やキャラクターの一人称・語尾などの口調は使わず、客観的な記録文体にしてください（「〜だった」「〜した」等の淡々とした地の文）。
-    ・150〜220字程度。見出しや箇条書き、絵文字、マークダウンは使わないでください。本文のみを出力してください。
-    ・毎日固定のルーティン作業は記録対象外です。以下に挙げた項目のみを扱ってください。
-    ・すべての項目が「(なし)」の場合は、「この日は特に記録すべき追加の予定はなかった。」という趣旨の一文のみを書いてください。
-    【今日、追加・変更されて完了した予定】: ${doneList.length > 0 ? doneList.join('、') : '(なし)'}
-    【今日、追加されたが未完了の予定】: ${notDoneList.length > 0 ? notDoneList.join('、') : '(なし)'}
-    【今日の夕食メニュー】: ${todayMenu || '(なし)'}
-    `;
+// mealPlan.dishは献立チャットのAIが自由記述で入れる1本の文字列のため、
+// 「、」「・」「/」で区切られていれば複数品目として箇条書きに分解する
+// (区切りが無い、または1品だけの場合はそのまま1行になる)。
+// 「ごはんと味噌汁」のように「と」でつながった表記は、意図的に1品目として扱い分割しない。
+function splitDishItems(dishText) {
+    return (dishText || '')
+        .split(/[、・\/]/)
+        .map(s => s.trim())
+        .filter(s => s.length > 0);
+}
 
-    const result = await callGeminiAPI(prompt, 1024);
-    if (!result.ok) {
-        document.getElementById('diary-body').innerHTML = `<div class="diary-loading">エラーが発生しました（${result.message}）。もう一度試してください。</div>`;
-        return;
+// 献立が未確定の日は欄ごと省略する(nullを返す)。
+function buildMealDiaryLines() {
+    if (!mealPlan || !mealPlan.dish) return null;
+    const items = splitDishItems(mealPlan.dish);
+    return items.length > 0 ? items.map(item => `・${item}`) : null;
+}
+
+function generateDiary() {
+    const scheduleLines = buildScheduleDiaryLines();
+    const mealLines = buildMealDiaryLines();
+
+    let body = '★今日の予定\n' + scheduleLines.join('\n');
+    if (mealLines) {
+        body += '\n\n★今日の献立\n' + mealLines.join('\n');
     }
-    const fullText = `${buildDiaryDateHeader()}\n\n${result.text.trim()}`;
+
+    const fullText = `${buildDiaryDateHeader()}\n\n${body}`;
     renderDiaryResult(fullText);
 }
 
