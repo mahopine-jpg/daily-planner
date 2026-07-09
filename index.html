@@ -1802,14 +1802,17 @@ function renderDiaryResult(diaryText) {
         <textarea id="diary-textarea" class="diary-textarea">${diaryText}</textarea>
         <p style="font-size:11px;color:var(--text-sub);margin:6px 2px 0 2px;">↑ コピー・保存の前に自由に編集できます</p>
         <div class="diary-actions">
-            <button class="diary-action-btn diary-copy-btn" onclick="copyDiaryText()">📋 コピー</button>
+            <button class="diary-action-btn diary-copy-btn" onclick="copyTextareaContent('diary-textarea')">📋 コピー</button>
             <button class="diary-action-btn diary-save-btn" onclick="downloadDiaryText()">💾 テキストで保存</button>
         </div>
     `;
 }
 
-function copyDiaryText() {
-    const ta = document.getElementById('diary-textarea');
+// 【リファクタリング】日記コピー・インポートプロンプトコピーで重複していた
+// 「navigator.clipboard.writeText()→失敗時はdocument.execCommand('copy')」のロジックを
+// textarea要素のIDを受け取る汎用関数に統合した(リファクタリング候補メモ2.3参照)。
+function copyTextareaContent(textareaId) {
+    const ta = document.getElementById(textareaId);
     navigator.clipboard.writeText(ta.value).then(() => {
         alert('コピーしました');
     }).catch(() => {
@@ -1952,7 +1955,7 @@ function renderImportModal() {
         <div class="import-step-label">① 下のプロンプトをコピーして、Geminiアプリ（gemini.google.com等）に貼り付けてください</div>
         <textarea id="import-prompt-textarea" class="import-prompt-textarea" readonly>${promptText}</textarea>
         <div class="diary-actions" style="margin-top:8px;">
-            <button class="diary-action-btn diary-copy-btn" onclick="copyImportPrompt()">📋 コピー</button>
+            <button class="diary-action-btn diary-copy-btn" onclick="copyTextareaContent('import-prompt-textarea')">📋 コピー</button>
         </div>
         <div class="import-step-label">② Geminiアプリの回答をここに貼り付けてください</div>
         <textarea id="import-paste-textarea" class="import-paste-textarea" placeholder="ここに回答を貼り付け..."></textarea>
@@ -1961,16 +1964,6 @@ function renderImportModal() {
             <button class="diary-action-btn diary-save-btn" onclick="handleApplyManualImportClick()">反映する</button>
         </div>
     `;
-}
-function copyImportPrompt() {
-    const ta = document.getElementById('import-prompt-textarea');
-    navigator.clipboard.writeText(ta.value).then(() => {
-        alert('コピーしました');
-    }).catch(() => {
-        ta.select();
-        document.execCommand('copy');
-        alert('コピーしました');
-    });
 }
 function showImportError() {
     const area = document.getElementById('import-error-area');
