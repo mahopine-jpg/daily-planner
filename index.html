@@ -410,6 +410,7 @@ body {
             <div id="header-menu" class="header-menu">
                 <button class="header-menu-item" onclick="closeHeaderMenu(); openDiaryModal();">📔 日記を書き出す</button>
                 <button class="header-menu-item" onclick="closeHeaderMenu(); openMemoModal();">🥕 食材メモ</button>
+                <button class="header-menu-item" onclick="closeHeaderMenu(); resetMealPlanAndChat();">🔄 献立をやり直す</button>
                 <button class="header-menu-item" onclick="closeHeaderMenu(); openManualImportModal();">🆘 手動で作ってもらう</button>
                 <button class="header-menu-item" onclick="closeHeaderMenu(); resetApiKey();">🔑 APIキー再設定</button>
             </div>
@@ -719,6 +720,36 @@ async function callGeminiAPI(promptText, maxOutputTokens, attempt) {
     }
 }
 
+// 献立チャットの応答は『===MEMO===』『===PLAN===』の2種類のマーカーを、
+// どちらが先に出てきてもよい仕様(同じ応答内に両方含めても可)になっている。
+// 以前は単純に text.split('===MEMO===') → 残り全部をMEMOのJSONとみなす実装だったため、
+// 「===MEMO=== → 食材JSON → ===PLAN=== → 段取りJSON」の順で返ってきた場合に、
+// 段取りJSONまで丸ごとMEMO側のJSONパース対象に巻き込まれてパース失敗し、
+// 段取りがまるごと消失する不具合があった(2260709セッションで発見)。
+// マーカーの出現順に依存せず、各マーカーの直後〜「次にどちらかのマーカーが来る位置か文末」までを
+// 独立して切り出すことで、順序に関わらず正しく分離できるようにする。
+const MEAL_RESPONSE_MARKERS = ['===PLAN===', '===MEMO==='];
+function extractMarkedSection(text, marker) {
+    const idx = text.indexOf(marker);
+    if (idx === -1) return null;
+    const start = idx + marker.length;
+    let end = text.length;
+    MEAL_RESPONSE_MARKERS.forEach(m => {
+        if (m === marker) return;
+        const mi = text.indexOf(m, start);
+        if (mi !== -1 && mi < end) end = mi;
+    });
+    return text.substring(start, end);
+}
+function extractCommentBeforeMarkers(text) {
+    let end = text.length;
+    MEAL_RESPONSE_MARKERS.forEach(m => {
+        const mi = text.indexOf(m);
+        if (mi !== -1 && mi < end) end = mi;
+    });
+    return text.substring(0, end);
+}
+
 /* AIの応答からJSONブロックを取り出す。コードフェンスの表記ゆれや、
    前後に余計な文章が混ざっているケースでもできるだけ救い出す。 */
 function extractJsonBlock(rawText) {
@@ -925,6 +956,9 @@ function showTab(tabId, btnEl) {
     document.getElementById(tabId).classList.add('active');
     document.querySelectorAll('.tab-bar-btn').forEach(b => b.classList.remove('active'));
     btnEl.classList.add('active');
+    // 【不具合修正】献立タブに切り替えた際にrenderMealPlan()が呼ばれておらず、
+    // 保存済みの段取りや「未確定」メッセージが表示されないことがあったため追加
+    if (tabId === 'tab-meal') renderMealPlan();
     // タブバー自体がオーバーレイの下に隠れる設計のため、通常ここに来るのはオーバーレイが
     // 閉じている時だけだが、念のため開いていれば閉じておく
     if (chatOverlayOpen) closeChatOverlay();
@@ -1449,6 +1483,19 @@ function appendMealBubbleLive(sender, text, isUser, plan, memoNote, showImportSh
     saveMealChat();
 }
 
+// 【新機能】献立と段取りを完全にクリアして最初からやり直す。
+// 食材メモ(mealMemo)は「日付をまたいでも残す永続データ」という既存の設計方針があるため、
+// このリセットの対象には含めない(消したい場合は食材メモ画面から個別に削除する)。
+function resetMealPlanAndChat() {
+    if (!confirm("献立と段取りをすべてクリアして、最初からやり直しますか？\nこの操作は取り消せません（食材メモは残ります）。")) return;
+    mealPlan = null;
+    saveMealPlan();
+    mealMessages = [Object.assign({}, MEAL_GREETING)];
+    saveMealChat();
+    renderMealPlan();
+    renderMealChatRoom();
+}
+
 function addMealMemoItem(ingredientName) {
     mealMemo.push({ id: 'm_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6), ingredient: ingredientName, priority: null });
     saveMealMemo();
@@ -1492,39 +1539,39 @@ async function handleMealSend() {
         if (!result.ok) {
             appendMealBubbleLive('nekosuke', `ごめんニャ、エラーが発生したニャ……（${result.message}）`, false, null, null, true);
         } else {
-            // まず===MEMO===を切り出し、その手前のテキストを===PLAN===判定に使う(順序はどちらが先でも対応)
-            let workingText = result.text;
+            // 【不具合修正】===MEMO===と===PLAN===はどちらが先に出てきても、
+            // それぞれ独立して抽出する(以前はMEMOが先だとPLAN側が巻き込まれて消えていた)
+            const rawText = result.text;
             let memoNoteText = null;
-            const memoParts = workingText.split('===MEMO===');
-            if (memoParts.length === 2) {
+
+            const memoSection = extractMarkedSection(rawText, '===MEMO===');
+            if (memoSection !== null) {
                 try {
-                    const memoJson = JSON.parse(extractJsonBlock(memoParts[1]));
+                    const memoJson = JSON.parse(extractJsonBlock(memoSection));
                     const names = memoJson.ingredients || [];
                     names.forEach(name => addMealMemoItem(name));
                     if (names.length > 0) memoNoteText = names.join('、');
-                    workingText = memoParts[0];
                 } catch (memoErr) {
-                    console.error('食材メモJSONの解析に失敗しました:', memoErr, memoParts[1]);
-                    workingText = memoParts[0];
+                    console.error('食材メモJSONの解析に失敗しました:', memoErr, memoSection);
                 }
             }
 
-            const parts = workingText.split('===PLAN===');
-            if (parts.length === 2) {
-                const jsonText = extractJsonBlock(parts[1]);
+            const commentText = extractCommentBeforeMarkers(rawText).trim();
+            const planSection = extractMarkedSection(rawText, '===PLAN===');
+            if (planSection !== null) {
                 try {
-                    const plan = JSON.parse(jsonText);
+                    const plan = JSON.parse(extractJsonBlock(planSection));
                     mealPlan = plan;
                     saveMealPlan();
-                    appendMealBubbleLive('nekosuke', parts[0].trim(), false, plan, memoNoteText);
+                    appendMealBubbleLive('nekosuke', commentText, false, plan, memoNoteText);
                     renderMealPlan();
                     closeChatOverlay(); // 段取りが完成したら、チャットを閉じて背後の一覧を見せる
                 } catch (parseErr) {
-                    console.error('段取りJSONの解析に失敗しました:', parseErr, jsonText);
-                    appendMealBubbleLive('nekosuke', (parts[0].trim() || "うまくまとめられなかったニャ…") + "\n\n（段取りデータの形式が崩れていたので反映できなかったニャ。もう一度お願いしてほしいニャ🙏）", false, null, memoNoteText);
+                    console.error('段取りJSONの解析に失敗しました:', parseErr, planSection);
+                    appendMealBubbleLive('nekosuke', (commentText || "うまくまとめられなかったニャ…") + "\n\n（段取りデータの形式が崩れていたので反映できなかったニャ。もう一度お願いしてほしいニャ🙏）", false, null, memoNoteText);
                 }
             } else {
-                appendMealBubbleLive('nekosuke', workingText.trim(), false, null, memoNoteText);
+                appendMealBubbleLive('nekosuke', commentText || "……ちょっと考え中ニャ、もう一度話しかけてほしいニャ。", false, null, memoNoteText);
             }
         }
     } finally {
@@ -1844,6 +1891,7 @@ initApp();
 requestTimestamps = loadRequestTimestamps(); // PWAのバックグラウンド復帰後も直近の送信状況を復元
 updateDateDisplay();
 renderTimeline();
+renderMealPlan(); // 【不具合修正】起動時にrenderMealPlan()が呼ばれておらず、保存済みの段取りや「未確定」メッセージが画面に反映されない不具合があったため追加
 renderMealChatRoom();
 updateChatFabIcon();
 startTimePatrol();
