@@ -456,7 +456,17 @@ body {
     <!-- 献立＆調理タブ -->
     <div id="tab-meal" class="tab-panel">
         <div class="meal-panel-inner">
+            <div class="day-selector-row">
+                <button id="meal-day-toggle-today-btn" class="day-selector-item active" onclick="switchMealDayMode('today')">
+                    <span class="day-selector-label">今日</span>
+                </button>
+                <span class="day-selector-divider">|</span>
+                <button id="meal-day-toggle-tomorrow-btn" class="day-selector-item" onclick="switchMealDayMode('tomorrow')">
+                    <span class="day-selector-label">明日</span>
+                </button>
+            </div>
             <div id="meal-view-plan" class="chat-overlay-body" style="display:flex;">
+                <div id="meal-day-mode-banner-plan" class="status-indicator day-mode-banner" style="display:none;">🌙 「明日の下書き」を表示中ニャ。日付が変わると自動で今日の献立になるニャ</div>
                 <div class="scroll-area">
                     <div id="meal-plan-content"></div>
                 </div>
@@ -496,6 +506,7 @@ body {
     </div>
 
     <div id="meal-view-chat" class="chat-overlay-body" style="display:none;">
+        <div id="meal-day-mode-banner-chat" class="status-indicator day-mode-banner" style="display:none;">🌙 「明日の下書き」を相談中ニャ。ここで話す内容は明日の献立に反映されるニャ</div>
         <div id="meal-status" class="status-indicator" style="display:none;">🎀 ネコ助が段取りを考え中ニャ...</div>
         <div id="meal-chat-talk-room" class="chat-talk-room"></div>
     </div>
@@ -844,7 +855,10 @@ let currentEvents = [];
 let tomorrowEvents = [];              // 前夜に仕込む翌日ドラフト(日付またぎで昇格、使い切り)
 let scheduleDisplayMode = 'today';    // 予定タブの表示対象: 'today' | 'tomorrow'(起動毎に'today'から開始)
 let mealMessages = [];
+let mealMessagesTomorrow = [];        // 明日の献立チャットの会話ログ(今日の会話とは別ログ)
 let mealPlan = null;
+let mealPlanTomorrow = null;          // 明日の下書き段取り(日付またぎでmealPlanに昇格、使い切り)
+let mealDisplayMode = 'today';        // 献立タブの表示対象: 'today' | 'tomorrow'(起動毎に'today'から開始)
 let mealMemo = [];
 let lastCheckedMinute = "";
 let importTargetTab = 'schedule';
@@ -860,6 +874,27 @@ function activeEvents() {
 function persistActiveEvents() {
     if (scheduleDisplayMode === 'tomorrow') saveTomorrowEvents();
     else saveToLocalStorage();
+}
+
+// 献立タブの編集・描画系関数はすべてこのヘルパー経由でデータにアクセスする。
+// 予定タブのactiveEvents()/persistActiveEvents()と全く同じ考え方。
+function activeMealPlan() {
+    return mealDisplayMode === 'tomorrow' ? mealPlanTomorrow : mealPlan;
+}
+function setActiveMealPlan(plan) {
+    if (mealDisplayMode === 'tomorrow') { mealPlanTomorrow = plan; saveMealPlanTomorrow(); }
+    else { mealPlan = plan; saveMealPlan(); }
+}
+function persistActiveMealPlan() {
+    if (mealDisplayMode === 'tomorrow') saveMealPlanTomorrow();
+    else saveMealPlan();
+}
+function activeMealMessages() {
+    return mealDisplayMode === 'tomorrow' ? mealMessagesTomorrow : mealMessages;
+}
+function persistActiveMealMessages() {
+    if (mealDisplayMode === 'tomorrow') saveMealChatTomorrow();
+    else saveMealChat();
 }
 
 /* ============ 初期化・日付またぎ判定 ============ */
@@ -891,17 +926,28 @@ function initApp() {
     scheduleDisplayMode = 'today'; // 起動時は常に「今日」表示から始める(セッション内のみの選択状態)
 
     const savedMealChat = loadJson('DAILY_PLANNER_MEAL_CHAT', null);
-    if (isNewDay || !savedMealChat) {
-        mealMessages = [Object.assign({}, MEAL_GREETING)];
-    } else {
-        mealMessages = savedMealChat;
-    }
+    const mealChatTomorrowDraft = loadJson('DAILY_PLANNER_MEAL_CHAT_TOMORROW', null);
+    const mealPlanTomorrowDraft = loadJson('DAILY_PLANNER_MEAL_PLAN_TOMORROW', null);
 
     if (isNewDay) {
-        mealPlan = null;
+        // 予定タブ(currentEvents/tomorrowEvents)と全く同じ考え方：
+        // 前夜に明日の下書き(献立・会話)が仕込まれていれば、それを「今日」のデータとして昇格させる。
+        const hasTomorrowPlan = mealPlanTomorrowDraft && mealPlanTomorrowDraft.steps && mealPlanTomorrowDraft.steps.length > 0;
+        mealPlan = hasTomorrowPlan ? mealPlanTomorrowDraft : null;
+        mealPlanTomorrow = null; // 昇格後は使い切りでクリアする
+        localStorage.removeItem('DAILY_PLANNER_MEAL_PLAN_TOMORROW');
+
+        const hasTomorrowChat = mealChatTomorrowDraft && mealChatTomorrowDraft.length > 0;
+        mealMessages = hasTomorrowChat ? mealChatTomorrowDraft : [Object.assign({}, MEAL_GREETING)];
+        mealMessagesTomorrow = [Object.assign({}, MEAL_GREETING)];
+        localStorage.removeItem('DAILY_PLANNER_MEAL_CHAT_TOMORROW');
     } else {
+        mealMessages = (savedMealChat && savedMealChat.length > 0) ? savedMealChat : [Object.assign({}, MEAL_GREETING)];
         mealPlan = loadJson('DAILY_PLANNER_MEAL_PLAN', null);
+        mealMessagesTomorrow = (mealChatTomorrowDraft && mealChatTomorrowDraft.length > 0) ? mealChatTomorrowDraft : [Object.assign({}, MEAL_GREETING)];
+        mealPlanTomorrow = mealPlanTomorrowDraft;
     }
+    mealDisplayMode = 'today'; // 起動時は常に「今日」表示から始める(セッション内のみの選択状態)
 
     // 食材メモは日付をまたいでもリセットしない永続データ(食材名・優先度はそのまま残す)。
     // ただし「明日使用予定」フラグ(forTomorrow)だけは、翌日になった時点でその「明日」が
@@ -919,6 +965,10 @@ function initApp() {
     localStorage.setItem('DAILY_PLANNER_LAST_DATE', todayStr);
     saveToLocalStorage();
     saveMealChat();
+    // 【不具合修正】以前はmealPlanをここで永続化しておらず、日付またぎ直後にリロードすると
+    // (isNewDayが既にfalseになるため)まだ古いmealPlanが再読込されてしまう潜在バグがあった。
+    // 予定タブのsaveToLocalStorage()と同様、ここで確実に書き込む。
+    saveMealPlan();
 }
 
 function saveToLocalStorage() {
@@ -933,6 +983,12 @@ function saveMealChat() {
 }
 function saveMealPlan() {
     saveJson('DAILY_PLANNER_MEAL_PLAN', mealPlan);
+}
+function saveMealPlanTomorrow() {
+    saveJson('DAILY_PLANNER_MEAL_PLAN_TOMORROW', mealPlanTomorrow);
+}
+function saveMealChatTomorrow() {
+    saveJson('DAILY_PLANNER_MEAL_CHAT_TOMORROW', mealMessagesTomorrow);
 }
 function saveMealMemo() {
     saveJson('DAILY_PLANNER_MEAL_MEMO', mealMemo);
@@ -959,6 +1015,20 @@ function syncTodayWithBaseRoutines() {
     currentEvents = [...newRoutines, ...otherEvents];
     saveToLocalStorage();
     renderTimeline();
+}
+
+// 献立タブの表示対象を「今日」⇄「明日の下書き」で切り替える(switchDayModeの献立版)。
+// 予定タブと異なり、献立チャットの会話履歴(mealMessages)自体も今日/明日で別ログにする方針のため、
+// activeMealMessages()/activeMealPlan()で参照先ごと切り替え、プラン表示・チャット表示の両方を再描画する。
+function switchMealDayMode(mode) {
+    mealDisplayMode = mode;
+    const isTomorrow = mode === 'tomorrow';
+    document.getElementById('meal-day-toggle-today-btn').classList.toggle('active', !isTomorrow);
+    document.getElementById('meal-day-toggle-tomorrow-btn').classList.toggle('active', isTomorrow);
+    document.getElementById('meal-day-mode-banner-plan').style.display = isTomorrow ? 'block' : 'none';
+    document.getElementById('meal-day-mode-banner-chat').style.display = isTomorrow ? 'block' : 'none';
+    renderMealPlan();
+    renderMealChatRoom();
 }
 
 function updateDateDisplay() {
@@ -1530,7 +1600,7 @@ async function handleSend() {
 function renderMealChatRoom() {
     const room = document.getElementById('meal-chat-talk-room');
     room.innerHTML = '';
-    mealMessages.forEach(m => appendMealBubbleFromData(m));
+    activeMealMessages().forEach(m => appendMealBubbleFromData(m));
     room.scrollTop = room.scrollHeight;
 }
 
@@ -1550,13 +1620,14 @@ function appendMealBubbleFromData(m) {
     room.appendChild(row);
 }
 
+// 会話ログへの追記も、表示中のモード(今日/明日)に応じてactiveMealMessages()経由で行う。
 function appendMealBubbleLive(sender, text, isUser, plan, memoNote, showImportShortcut) {
     const data = { sender: isUser ? 'user' : 'nekosuke', text: text, plan: plan || null, memoNote: memoNote || null, showImportShortcut: showImportShortcut || false };
-    mealMessages.push(data);
+    activeMealMessages().push(data);
     appendMealBubbleFromData(data);
     const room = document.getElementById('meal-chat-talk-room');
     room.scrollTop = room.scrollHeight;
-    saveMealChat();
+    persistActiveMealMessages();
 }
 
 // 【新機能】献立と段取りを完全にクリアして最初からやり直す。
@@ -1565,12 +1636,20 @@ function appendMealBubbleLive(sender, text, isUser, plan, memoNote, showImportSh
 // 【20260709確定】「明日使用予定」フラグ(forTomorrow)を追加した後も、この方針は変えない。
 // このボタンは「今日の献立を考え直したい」時のものであり「食材メモを整理したい」時のものではないため、
 // 押すたびに明日使う印まで消えると、そのたびにメモし直す手間が発生し不便になるという判断による。
+// 【明日の下書き対応】表示中のモード(今日/明日)だけをクリア対象にする。明日タブを見ている時に押せば
+// 明日の下書きだけが消え、今日のデータには影響しない(逆も同様)。
 function resetMealPlanAndChat() {
-    if (!confirm("献立と段取りをすべてクリアして、最初からやり直しますか？\nこの操作は取り消せません（食材メモは残ります）。")) return;
-    mealPlan = null;
-    saveMealPlan();
-    mealMessages = [Object.assign({}, MEAL_GREETING)];
-    saveMealChat();
+    const isTomorrow = mealDisplayMode === 'tomorrow';
+    const label = isTomorrow ? '明日の下書き（献立・段取り）' : '献立と段取り';
+    if (!confirm(`${label}をすべてクリアして、最初からやり直しますか？\nこの操作は取り消せません（食材メモは残ります）。`)) return;
+    setActiveMealPlan(null);
+    if (isTomorrow) {
+        mealMessagesTomorrow = [Object.assign({}, MEAL_GREETING)];
+        saveMealChatTomorrow();
+    } else {
+        mealMessages = [Object.assign({}, MEAL_GREETING)];
+        saveMealChat();
+    }
     renderMealPlan();
     renderMealChatRoom();
 }
@@ -1584,9 +1663,10 @@ function addMealMemoItem(ingredientName) {
 // 【仕様変更】以前は「夜の家事＆夕食の調理スタート」1枚のカードから+20分のバッファ計算で
 // 調理開始時刻を推定していたが、予定タブ側を「夜の家事」「夕食の調理」の2枚に分割したことで、
 // 計算式なしで直接カードの時刻を参照するだけで済むようになった(リスケにも直接追従する)。
-function getCookingWindow() {
-    const cookEvent = currentEvents.find(e => e.title && e.title.includes('夕食の調理'));
-    const cleanupEvent = currentEvents.find(e => e.title && e.title.includes('夕食＆片付け'));
+function getCookingWindow(mode) {
+    const events = (mode === 'tomorrow') ? tomorrowEvents : currentEvents;
+    const cookEvent = events.find(e => e.title && e.title.includes('夕食の調理'));
+    const cleanupEvent = events.find(e => e.title && e.title.includes('夕食＆片付け'));
     if (!cookEvent || !cleanupEvent) {
         // ルーティンが見つからない(タイトル変更・削除等)場合は、既定値にフォールバックする
         return { start: '18:20', end: '19:30' };
@@ -1595,25 +1675,44 @@ function getCookingWindow() {
 }
 
 function buildMealSystemPrompt() {
-    const highPriorityMemo = mealMemo.filter(m => m.priority === 'high' || m.priority === 'mid')
-        .map(m => `${m.priority === 'high' ? '🔴' : '🟡'}${m.ingredient}`).join('、');
-    const memoContext = highPriorityMemo ? `\n【ユーザーが使いたいと思っている食材】: ${highPriorityMemo}` : '';
+    const isTomorrowMode = mealDisplayMode === 'tomorrow';
+    const targetDayLabel = isTomorrowMode ? '明日' : '今日';
+
+    // 【明日の下書き対応】明日の献立相談では、優先度メモの代わりに「明日使う」フラグが立った
+    // 食材を最優先で見せる(ユーザーが「明日必ず使いたい」と明示した食材のため)。
+    // 今日の相談では従来通り優先度high/midの食材を見せる。
+    let memoContext = '';
+    if (isTomorrowMode) {
+        const mustUse = mealMemo.filter(m => m.forTomorrow).map(m => m.ingredient).join('、');
+        const wantToUse = mealMemo.filter(m => !m.forTomorrow && (m.priority === 'high' || m.priority === 'mid'))
+            .map(m => `${m.priority === 'high' ? '🔴' : '🟡'}${m.ingredient}`).join('、');
+        if (mustUse) memoContext += `\n【ユーザーが明日必ず使いたいとメモしている食材】: ${mustUse}`;
+        if (wantToUse) memoContext += `\n【ユーザーが使いたいと思っている食材（明日以外でも可）】: ${wantToUse}`;
+    } else {
+        const highPriorityMemo = mealMemo.filter(m => m.priority === 'high' || m.priority === 'mid')
+            .map(m => `${m.priority === 'high' ? '🔴' : '🟡'}${m.ingredient}`).join('、');
+        memoContext = highPriorityMemo ? `\n【ユーザーが使いたいと思っている食材】: ${highPriorityMemo}` : '';
+    }
 
     // 【不具合修正】以前は現在の段取り状態を一切AIに渡していなかったため、
     // 「時間を変更して」等の"既存プランの微調整"依頼に対しても、AIは何が既に決まっているか分からず
     // 全く別の献立・段取りを新規提案してしまっていた。既存プランがあれば必ずコンテキストとして渡す。
-    const currentPlanContext = (mealPlan && mealPlan.steps && mealPlan.steps.length > 0)
-        ? `\n【現在すでに登録されている献立・段取り】\n献立: ${mealPlan.dish || ''}\n` +
-          mealPlan.steps.map(s => `- ${s.time} ${s.title}（${s.detail || ''}）`).join('\n') +
+    // 【明日の下書き対応】今日/明日どちらのプランを参照するかはactiveMealPlan()で切り替える。
+    const activePlan = activeMealPlan();
+    const currentPlanContext = (activePlan && activePlan.steps && activePlan.steps.length > 0)
+        ? `\n【現在すでに登録されている${targetDayLabel}の献立・段取り】\n献立: ${activePlan.dish || ''}\n` +
+          activePlan.steps.map(s => `- ${s.time} ${s.title}（${s.detail || ''}）`).join('\n') +
           `\nユーザーが「時間を変えて」「もっと早く/遅く」等、微調整を頼んできた場合は、` +
           `この献立・手順の中身は基本的に維持したまま、時間や該当箇所だけを調整した『===PLAN===』を返してください。` +
           `別の献立を提案するのは、ユーザーが明確に別メニューを希望した時だけにしてください。`
         : '';
 
-    const cookWindow = getCookingWindow();
+    // 【明日の下書き対応】明日モードでは、明日の予定タブ(tomorrowEvents)側の調理時間帯を参照する。
+    const cookWindow = getCookingWindow(mealDisplayMode);
 
     return `
-あなたはユーザーの夕食の献立と調理の段取りを考える、優秀なAIアシスタント「ネコ助」です。
+あなたはユーザーの${targetDayLabel}の夕食の献立と調理の段取りを考える、優秀なAIアシスタント「ネコ助」です。
+現在ユーザーが相談しているのは「${targetDayLabel}」の夕食です。
 語尾には「〜ニャ」「〜ニャ〜🐾」をつけてください。
 食材や好みの相談に自由に応じ、献立が決まったら「効率よく段取りを組んで」、
 以下のフォーマットでコメントの後に『===PLAN===』を挟んでJSONを出力してください：
@@ -1632,7 +1731,7 @@ function buildMealSystemPrompt() {
 段取り確定時の『===PLAN===』と同じ応答に含める場合は、PLANで使う食材とMEMOの食材が重複しないようにしてください。
 
 【調理に使える実際の時間帯】
-このユーザーが実際に調理・片付けに使える時間は${cookWindow.start}〜${cookWindow.end}のみに固定されています(予定タブの最新のスケジュールに連動)。
+このユーザーが実際に調理・片付けに使える時間は${cookWindow.start}〜${cookWindow.end}のみに固定されています(${targetDayLabel}の予定タブのスケジュールに連動)。
 これより前は、カーテンを閉める・猫にごはんをあげる・お米を研いで炊飯器にかける、という
 調理そのものではない家事の時間帯なので、段取りの最初のステップをここに置かないでください。
 段取りの最初のステップは${cookWindow.start}以降、最後のステップは${cookWindow.end}までに収まるように時間を設定してください。
@@ -1652,8 +1751,8 @@ async function handleMealSend() {
     document.getElementById('meal-status').style.display = 'block';
     if (sendBtn) sendBtn.disabled = true;
 
-    // 直近の会話履歴のみ渡す(予定表データは一切含めない)
-    const historyText = mealMessages.slice(-10).map(m => `${m.sender === 'user' ? 'ユーザー' : 'ネコ助'}: ${m.text}`).join('\n');
+    // 直近の会話履歴のみ渡す(予定表データは一切含めない)。今日/明日どちらのログを見るかはactiveMealMessages()で切り替わる。
+    const historyText = activeMealMessages().slice(-10).map(m => `${m.sender === 'user' ? 'ユーザー' : 'ネコ助'}: ${m.text}`).join('\n');
 
     try {
         const result = await callGeminiAPI(buildMealSystemPrompt() + "\n\n【これまでの会話】\n" + historyText + "\n\nユーザーの最新の入力: " + text, 2048);
@@ -1708,8 +1807,7 @@ async function handleMealSend() {
             }
 
             if (plan) {
-                mealPlan = plan;
-                saveMealPlan();
+                setActiveMealPlan(plan);
                 appendMealBubbleLive('nekosuke', commentText, false, plan, memoNoteText);
                 renderMealPlan();
                 closeChatOverlay(); // 段取りが完成したら、チャットを閉じて背後の一覧を見せる
@@ -1739,31 +1837,35 @@ function buildMealRowHtml(step, idx) {
     });
 }
 
-function updateMealStepTime(idx, newTime) { mealPlan.steps[idx].time = formatTimeInput(newTime); renderMealPlan(); saveMealPlan(); }
-function updateMealStepTitle(idx, newTitle) { mealPlan.steps[idx].title = newTitle; saveMealPlan(); }
-function updateMealStepDetail(idx, newDetail) { mealPlan.steps[idx].detail = newDetail; saveMealPlan(); }
-function deleteMealStep(idx) { mealPlan.steps.splice(idx, 1); renderMealPlan(); saveMealPlan(); }
-function toggleMealStep(idx) { mealPlan.steps[idx].done = !mealPlan.steps[idx].done; renderMealPlan(); saveMealPlan(); }
+function updateMealStepTime(idx, newTime) { activeMealPlan().steps[idx].time = formatTimeInput(newTime); renderMealPlan(); persistActiveMealPlan(); }
+function updateMealStepTitle(idx, newTitle) { activeMealPlan().steps[idx].title = newTitle; persistActiveMealPlan(); }
+function updateMealStepDetail(idx, newDetail) { activeMealPlan().steps[idx].detail = newDetail; persistActiveMealPlan(); }
+function deleteMealStep(idx) { activeMealPlan().steps.splice(idx, 1); renderMealPlan(); persistActiveMealPlan(); }
+function toggleMealStep(idx) { activeMealPlan().steps[idx].done = !activeMealPlan().steps[idx].done; renderMealPlan(); persistActiveMealPlan(); }
 
 function renderMealPlan() {
     // 予定タブのrenderTimeline()と同様、入力中(contenteditable/時刻入力)は再描画でフォーカスが飛ぶため更新をスキップする
     if (shouldSkipRerenderForEditing('meal-plan-content')) return;
 
     const container = document.getElementById('meal-plan-content');
-    if (!mealPlan || !mealPlan.steps || mealPlan.steps.length === 0) {
-        container.innerHTML = '<div class="meal-plan-empty">まだ段取りが決まっていないニャ。チャットで献立を相談してニャ🐾</div>';
+    const plan = activeMealPlan();
+    const isTomorrow = mealDisplayMode === 'tomorrow';
+    if (!plan || !plan.steps || plan.steps.length === 0) {
+        container.innerHTML = isTomorrow
+            ? '<div class="meal-plan-empty">明日の献立はまだ決まっていないニャ。下のチャットでネコ助に相談してみてニャ🐾</div>'
+            : '<div class="meal-plan-empty">まだ段取りが決まっていないニャ。チャットで献立を相談してニャ🐾</div>';
         return;
     }
     let html = `
         <div class="meal-plan-header">
-            <div class="dish-label">今日の献立</div>
-            <h2>${mealPlan.dish || ''}</h2>
+            <div class="dish-label">${isTomorrow ? '明日の献立' : '今日の献立'}</div>
+            <h2>${plan.dish || ''}</h2>
         </div>
         <div class="timeline-wrap" style="padding-top:6px;">`;
-    mealPlan.steps.forEach((step, idx) => {
+    plan.steps.forEach((step, idx) => {
         html += buildMealRowHtml(step, idx);
-        if (idx < mealPlan.steps.length - 1) {
-            const diff = timeToMinutes(mealPlan.steps[idx + 1].time) - timeToMinutes(step.time);
+        if (idx < plan.steps.length - 1) {
+            const diff = timeToMinutes(plan.steps[idx + 1].time) - timeToMinutes(step.time);
             const px = calcGapPx(diff);
             html += `<div class="gap-connector"><div class="stub-col"><div class="stub-line" style="height:${px}px;background:var(--cooking);opacity:0.5;"></div></div><div style="flex-grow:1;"></div></div>`;
         }
@@ -2050,9 +2152,12 @@ function applyManualImport(target, pastedText) {
             if (!isValidPlanSteps(plan.steps)) {
                 throw new Error('段取りのtimeが絶対時刻(HH:MM)になっていません: ' + JSON.stringify(plan.steps));
             }
+            // 手動インポートは常に「今日」の献立が対象(明日の下書きには対応しない、既存方針を踏襲)。
+            // 表示中が明日モードのままだと反映結果が画面に見えないため、適用時に今日表示へ戻す。
             mealPlan = plan;
             saveMealPlan();
-            renderMealPlan();
+            if (mealDisplayMode !== 'today') switchMealDayMode('today');
+            else renderMealPlan();
         } catch (e) {
             console.error('手動インポート(献立)の解析に失敗しました:', e);
             showImportError();
